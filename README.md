@@ -33,7 +33,7 @@ cv.imshow("Image", img) # 이미지 출력
 
 cv.waitKey(0) # 키 입력 대기
 cv.destroyAllWindows() # 모든 창 닫기
-
+```
 출력 이미지
 <img width="1120" height="620" alt="image" src="https://github.com/user-attachments/assets/9ccaad7a-5d88-4865-83c1-6cc537fec519" />
 
@@ -53,7 +53,7 @@ cv.imshow("Gray Image", gray) # 흑백 이미지 출력
 
 cv.waitKey(0)
 cv.destroyAllWindows()
-
+```
 출력 사진
 <img width="1110" height="585" alt="image" src="https://github.com/user-attachments/assets/76408641-5370-43c4-957e-5390312204ab" />
 
@@ -79,5 +79,5 @@ out_small = cv.resize(out, None, fx=scale, fy=scale, interpolation=cv.INTER_AREA
 cv.imshow("Color | Gray", out_small) # "Color | Gray"라는 제목으로 축소된 이미지 표시
 cv.waitKey(0) # 키 입력 대기 (0: 무한 대기, 양수: 지정된 시간(ms) 동안 대기)
 cv.destroyAllWindows() # 모든 OpenCV 윈도우 닫기 (프로그램 종료
-
+```
 
