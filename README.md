@@ -58,7 +58,7 @@ cv.destroyAllWindows()
 <img width="1110" height="585" alt="image" src="https://github.com/user-attachments/assets/76408641-5370-43c4-957e-5390312204ab" />
 
 3번 컬러 이미지와 흑백이미지 출력후 이어 붙이기
-
+```python
 import cv2 as cv
 import numpy as np
 
@@ -71,7 +71,7 @@ gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY) # 이미지를 그레이스케일로 
 gray_bgr = cv.cvtColor(gray, cv.COLOR_GRAY2BGR) # 그레이스케일 이미지를 BGR 형식으로 변환 (컬러 이미지와 나란히 붙이기 위해)
 
 out = np.hstack((img, gray_bgr)) # 원본 컬러 이미지와 그레이스케일 이미지를 수평으로 붙이기 (hstack: 수평으로 배열을 합치는 함수)
-
+# 화면에 맞게 축소
 scale = 0.5 # 축소된 이미지 생성 (interpolation=cv.INTER_AREA: 축소할 때 좋은 품질을 제공하는 보간 방법)
 out_small = cv.resize(out, None, fx=scale, fy=scale, interpolation=cv.INTER_AREA) # 축소된 이미지 화면에 표시
 
