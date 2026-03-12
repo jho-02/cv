@@ -1,23 +1,61 @@
 과제 1
 1. 과제 1 : Camera Calibration
+   
 과제 설명
+카메라는 3차원 세계(World Coordinates)를 2차원 이미지(Image Plane)로 투영하는 장치입니다. 
+이 과정에서 카메라 렌즈의 특성 때문에 이미지에는 렌즈 왜곡(Lens Distortion)이 발생할 수 있습니다.
+Camera Calibration은 이러한 왜곡을 보정하기 위해 카메라의 내부 파라미터(Camera Matrix)와 왜곡 계수(Distortion Coefficients)를 계산하는 과정입니다.
 
-카메라는 3차원 세계(World Coordinates)를 2차원 이미지(Image Plane)로 투영하는 장치입니다.
-이 과정에서 카메라 렌즈의 특성 때문에 이미지에는 렌즈 왜곡(Lens Distortion) 이 발생할 수 있습니다.
+본 과제에서는 체크보드 패턴 이미지를 이용하여 체크보드의 코너를 검출하고,
+실제 3차원 좌표와 이미지에서의 2차원 좌표를 이용하여 카메라의 내부 파라미터를 계산하였습니다. 
+이후 계산된 파라미터를 이용하여 이미지의 왜곡을 보정하고, 원본 이미지와 보정된 이미지를 비교하여 결과를 확인하였습니다.
 
-Camera Calibration은 이러한 왜곡을 보정하기 위해 카메라의 내부 파라미터(Camera Matrix) 와 왜곡 계수(Distortion Coefficients) 를 계산하는 과정입니다..
+배경 지식
+Camera Calibration
 
-본 과제에서는 체크보드 이미지를 이용하여 체크보드의 코너를 검출하고, 실제 3차원 좌표와 이미지에서의 2차원 좌표를 이용하여 카메라의 내부 파라미터를 계산하였다. 이후 계산된 파라미터를 이용하여 이미지의 왜곡을 보정하였습니다.
+Camera Calibration은 카메라의 내부 파라미터(Intrinsic Parameters)와 렌즈 왜곡(Lens Distortion)을 추정하는 과정입니다.
+실제 카메라는 이상적인 핀홀 카메라 모델이 아니기 때문에 렌즈에 의해 이미지가 왜곡될 수 있습니다. 이러한 왜곡은 주로 다음과 같은 형태로 나타납니다.
+- Radial Distortion : 이미지 가장자리에서 발생하는 방사형 왜곡
+
+- Tangential Distortion : 렌즈와 이미지 센서의 정렬 문제로 발생하는 왜곡
+
+체크보드 패턴은 일정한 간격을 가진 격자 구조이기 때문에 이미지에서 코너를 쉽게 검출할 수 있어 
+Camera Calibration에 널리 사용됩니다.
+
+Camera Matrix
+Camera Matrix는 카메라의 내부 파라미터를 나타내는 3×3 행렬입니다.
+<img width="227" height="94" alt="image" src="https://github.com/user-attachments/assets/c6cc298a-7daf-47de-9a77-913d899aa714" />
+
+여기서
+<img width="350" height="62" alt="image" src="https://github.com/user-attachments/assets/3afc8651-6a37-438d-becf-c094c693fa2a" />
+을 의미합니다.
+
+본 과제에서 계산된 Camera Matrix는 다음과 같습니다
+<img width="325" height="86" alt="image" src="https://github.com/user-attachments/assets/51e4ec2f-c92a-4474-ae00-4ca0a0457da0" />
+
+Distortion Coefficients
+<img width="459" height="39" alt="image" src="https://github.com/user-attachments/assets/34064bc5-56ed-4b8e-84a7-2db774de50f7" />
+
+렌즈 왜곡은 일반적으로 다음과 같은 계수로 표현됩니다.
+<img width="290" height="58" alt="image" src="https://github.com/user-attachments/assets/6ef527bb-f0d9-4978-ab84-45bbbf982d33" />
+
+본 실습에서 계산된 Distortion Coefficients는 다음과 같습니다.
+<img width="471" height="44" alt="image" src="https://github.com/user-attachments/assets/5d615ebe-3459-41d7-a64b-9b8783d9f36b" />
+
+이 값을 이용하여 이미지의 왜곡을 보정할 수 있습니다.
 
 주요 코드 설명
+
 1.체크보드 코너 검출
 체크보드 패턴의 코너를 검출하기 위해 OpenCV의 findChessboardCorners() 함수를 사용하였습니다.
+```
 ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, None)
+```
 이 함수는 이미지에서 체크보드 패턴을 찾아 내부 코너의 위치를 반환합니다.
 
 2. 카메라 캘리브레이션 수행
-
 검출된 코너 좌표를 이용하여 카메라의 내부 행렬과 왜곡 계수를 계산하였습니다.
+```
 ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(
     objpoints,
     imgpoints,
@@ -25,14 +63,18 @@ ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(
     None,
     None
 )
+```
 K : Camera Matrix (카메라 내부 행렬)
-
 dist : Distortion Coefficients (렌즈 왜곡 계수)
+rvecs : 회전 벡터
+tvecs : 이동 벡터
 
 3. 이미지 왜곡 보정
-
 계산된 파라미터를 이용하여 원본 이미지의 렌즈 왜곡을 제거하였습니다.
+```
 undistorted = cv2.undistort(test_img, K, dist, None, newK)
+```
+과제 코드
 ```
 import cv2  # OpenCV 라이브러리를 불러옵니다.
 import numpy as np  # 배열 계산을 위해 NumPy를 불러옵니다.
@@ -151,28 +193,77 @@ cv2.destroyAllWindows()  # 모든 OpenCV 창을 닫습니다.
 
 과제 2 : Image Transformation
 
-과제 2번은 Image Transformation은 이미지의 위치, 방향, 크기 등을 변경하는 과정입니다.
-Computer Vision에서는 이러한 변환을 행렬(Matrix) 을 이용하여 표현합니다.
-이번 과제에서는 이미지에 대해 다음과 같은 변환을 수행하였습니다.
+과제설명
+Image Transformation은 이미지의 위치, 방향, 크기 등을 변경하는 과정입니다.
+Computer Vision에서는 이러한 변환을 행렬(Matrix)을 이용하여 표현하며
+이미지의 픽셀 좌표를 변환 행렬과 곱하여 새로운 위치로 이동시키는 방식으로 이루어집니다.
+
+이번 과제에서는 OpenCV를 이용하여 이미지에 다음과 같은 변환을 수행하였습니다.
 - 회전 (Rotation)
 - 크기 조정 (Scaling)
 - 평행 이동 (Translation)
-이러한 변환은 Affine Transformation 으로 표현할 수 있으며, OpenCV의 변환 행렬을 이용하여 이미지를 변환하였습니다.
+이러한 변환은 Affine Transformation 으로 표현할 수 있으며 OpenCV의 변환 행렬을 이용하여 이미지를 변환하였습니다.
+코드에서는 먼저 이미지 중심을 기준으로 회전과 스케일 변환을 수행한 후 변환 행렬의 이동 값을 수정하여 평행 이동을 추가하였습니다.
+마지막으로 warpAffine() 함수를 사용하여 변환 행렬을 이미지에 적용하였습니다.
+
+배경지식
+
+Image Transformation
+
+Image Transformation은 이미지의 좌표를 변환하여 새로운 형태의 이미지를 생성하는 과정입니다.
+이미지의 각 픽셀 좌표 (𝑥,𝑦)는 변환 행렬을 이용하여 새로운 좌표 (𝑥′,𝑦′)로 변환됩니다.
+이러한 변환은 Computer Vision, 이미지 정렬(Image Alignment), 객체 추적(Object Tracking), 
+영상 보정(Image Rectification) 등의 다양한 분야에서 사용됩니다.
+
+Affine Transformation
+
+Affine Transformation은 다음과 같은 변환을 포함하는 기하학적 변환입니다.
+
+- Rotation (회전)
+- Scaling (확대 및 축소)
+- Translation (평행 이동)
+- Shearing (기울이기)
+
+Affine Transformation은 직선과 평행성을 유지하는 특징을 가지고 있습니다.
+
+Affine 변환은 다음과 같은 행렬 형태로 표현됩니다.
+<img width="244" height="97" alt="image" src="https://github.com/user-attachments/assets/54434cb3-5000-4a27-b1ea-13fbddb4986c" />
+여기서
+<img width="311" height="71" alt="image" src="https://github.com/user-attachments/assets/882cd522-c954-44f5-88bc-ab25bd3ebc3a" />
+입니다.
+
 주요 코드 설명
 
 1. 회전 및 스케일 변환
 
 이미지 중심을 기준으로 회전과 크기 조정을 수행하였습니다.
+```
 M = cv2.getRotationMatrix2D(center, angle, scale)
-center : 회전 중심
-angle : 회전 각도
-scale : 크기 비율
+```
+각 변수의 의미는 다음과 같습니다.
+- center : 회전 중심
+- angle : 회전 각도
+- scale : 크기 비율
+getRotationMatrix2D() 함수는 회전과 스케일 변환을 동시에 적용할 수 있는 Affine 변환 행렬을 생성합니다.
 
-2. 이미지 변환 적용
+2. 평행 이동 (Translation)
 
-변환 행렬을 이용하여 이미지를 변환하였습니다.
+회전 행렬의 이동 요소를 수정하여 이미지의 위치를 이동시켰습니다.
+```
+M[0,2] += 80
+M[1,2] += -40
+```
+이 코드는 이미지의 x 방향과 y 방향으로 이동을 추가하여 평행 이동 변환을 수행합니다.
+
+3. 이미지 변환 적용
+
+생성된 변환 행렬을 이용하여 실제 이미지 변환을 수행하였습니다.
+```
 result = cv2.warpAffine(image, M, (width, height))
+```
 warpAffine() 함수는 변환 행렬을 이용하여 이미지를 새로운 위치와 형태로 변환합니다.
+이 함수는 입력 이미지의 모든 픽셀을 변환 행렬에 따라 새로운 좌표로 이동시켜 최종 변환된 이미지를 생성합니다.
+
 ```
 import cv2  # OpenCV 라이브러리를 불러옵니다.
 import numpy as np  # 배열이나 좌표 계산에 사용하는 NumPy를 불러옵니다.
@@ -214,30 +305,64 @@ cv2.destroyAllWindows()  # 열려 있는 모든 OpenCV 창을 닫습니다.
 
 과제 3 : Stereo Vision을 이용한 Depth 추정
 
-3번 과제는 Stereo Vision은 두 개의 카메라로 촬영한 이미지를 이용하여 물체까지의 거리를 계산하는 방법입니다.
-두 이미지에서 동일한 물체의 위치 차이를 Disparity 라고 하며, 이 disparity 값을 이용하면 물체까지의 거리(Depth)를 계산할 수 있습니다.
-Depth는 다음과 같은 관계식으로 계산됩니다.
-Depth = (f × B) / disparity
-f : 카메라의 초점 거리
-B : 두 카메라 사이 거리(Baseline)
-disparity : 좌우 이미지에서의 위치 차이
+과제설명
+Stereo Vision은 두 개의 카메라로 촬영한 이미지를 이용하여 물체까지의 거리를 계산하는 방법입니다.
+사람의 양쪽 눈이 서로 다른 위치에서 사물을 바라보는 것과 같은 원리를 이용하여 깊이 정보를 추정할 수 있습니다.
 
-3번 과제에서는 좌우 스테레오 이미지를 이용하여 disparity map을 계산하고, 이를 이용하여 depth 정보를 계산하였습니다.
-또한 이미지의 특정 영역(Painting, Frog, Teddy)에 대해 평균 disparity와 평균 depth를 계산하여 각 물체의 상대적인 거리를 비교하였습니다.
+두 이미지에서 동일한 물체는 서로 다른 위치에 나타나는데, 이러한 위치 차이를 Disparity라고 합니다. 이 disparity 값을 이용하면 물체까지의 거리인 Depth를 계산할 수 있습니다.
+
+Depth는 다음과 같은 관계식으로 계산됩니다.
+<img width="224" height="72" alt="image" src="https://github.com/user-attachments/assets/235a5f30-1f5e-4a84-a5c5-266891a24bd4" />
+f : 카메라의 초점 거리 (Focal Length)
+B : 두 카메라 사이의 거리 (Baseline)
+disparity : 좌우 이미지에서의 동일 물체의 위치 차이
+3번 과제에서는 좌우 스테레오 이미지를 이용하여 disparity map을 계산하고, 이를 이용하여 depth 정보를 계산하였습니다. 또한 이미지의 특정 영역(Painting, Frog, Teddy)에 대해 평균 disparity와 평균 depth를 계산하여 각 물체의 상대적인 거리를 비교하였습니다.
+
+배경지식
+
+Stereo Vision
+
+Stereo Vision은 두 개의 카메라로 촬영된 이미지를 이용하여 3차원 공간의 깊이 정보를 추정하는 기술입니다.
+
+두 카메라가 서로 다른 위치에서 같은 물체를 촬영하면 이미지에서 물체의 위치가 약간 다르게 나타나게 됩니다. 이 위치 차이를 이용하면 삼각측량(Triangulation)을 통해 물체까지의 거리를 계산할 수 있습니다.
+
+Stereo Vision은 자율주행 자동차, 로봇 비전, 3D 재구성, 증강현실(AR) 같은 분야에서 활용됩니다.
+
+Disparity Map
+
+Disparity Map은 좌우 이미지에서 동일한 픽셀의 위치 차이를 나타내는 이미지입니다.
+
+- disparity 값이 클수록 물체는 카메라에 가까움
+- disparity 값이 작을수록 물체는 카메라에서 멀리 있음
+
+disparity map을 시각화하면 이미지의 깊이 구조를 직관적으로 확인할 수 있습니다.
+
 주요 코드 설명
 
 1. Disparity 계산
 
 StereoBM 알고리즘을 이용하여 disparity map을 계산하였습니다.
+```
 stereo = cv2.StereoBM_create(numDisparities=64, blockSize=15)
 disparity = stereo.compute(left_gray, right_gray)
-이 과정에서 두 이미지 사이의 픽셀 위치 차이가 계산됩니다.
+```
+StereoBM 알고리즘은 블록 매칭(Block Matching) 방식으로 좌우 이미지의 픽셀 패턴을 비교하여 동일한 물체의 위치 차이를 계산합니다. 이 과정에서 두 이미지 사이의 픽셀 위치 차이가 계산되어 disparity map이 생성됩니다.
 
 2. Depth 계산
 
 계산된 disparity 값을 이용하여 depth 값을 계산하였습니다.
+```
 depth = (f * B) / disparity
-disparity 값이 클수록 물체는 카메라에 더 가까운 위치에 있습니다.
+```
+Stereo Vision의 기본 공식을 이용하여 각 픽셀의 깊이 값을 계산합니다.
+<img width="122" height="40" alt="image" src="https://github.com/user-attachments/assets/bc0ddfb3-f7b4-453b-8751-ec4a2a47dece" />
+
+여기서 disparity 값이 클수록 물체는 카메라에 더 가까운 위치에 있으며 disparity 값이 작을수록 물체는 더 먼 위치에 있습니다.
+
+3. ROI 영역 거리 분석
+
+이미지에서 특정 물체 영역(Painting, Frog, Teddy)을 ROI(Region of Interest)로 설정하고 각 영역의 평균 disparity와 평균 depth를 계산하였습니다.
+이를 통해 세 물체 중 어떤 물체가 카메라에 가장 가까운지, 그리고 어떤 물체가 가장 멀리 있는지를 비교할 수 있습니다.
 
 ```
 import cv2  # OpenCV 라이브러리를 불러옵니다.
