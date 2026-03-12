@@ -17,4 +17,4 @@ out_small = cv.resize(out, None, fx=scale, fy=scale, interpolation=cv.INTER_AREA
 
 cv.imshow("Color | Gray", out_small) # "Color | Gray"라는 제목으로 축소된 이미지 표시
 cv.waitKey(0) # 키 입력 대기 (0: 무한 대기, 양수: 지정된 시간(ms) 동안 대기)
-cv.destroyAllWindows() # 모든 OpenCV 윈도우 닫기 (프로그램 종료)
+cv.destroyAllWindows() # 모든 OpenCV 윈도우 닫기 (프로그램 종료
