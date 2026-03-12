@@ -28,7 +28,7 @@ objpoints = []
 imgpoints = []
 
 # calibration_images 폴더 안의 left로 시작하는 jpg 파일들을 모두 불러옴
-images = glob.glob("calibration_images/left*.jpg")
+images = glob.glob("2week/calibration_images/left*.jpg")
 
 # 이미지 크기를 저장할 변수
 img_size = None
