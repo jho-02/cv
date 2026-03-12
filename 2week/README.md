@@ -39,7 +39,9 @@ Camera Matrix는 카메라의 내부 파라미터를 나타내는 3×3 행렬입
 
 Distortion Coefficients
 
-<img width="459" height="39" alt="image" src="https://github.com/user-attachments/assets/34064bc5-56ed-4b8e-84a7-2db774de50f7" />
+<img width="335" height="66" alt="image" src="https://github.com/user-attachments/assets/ec49b798-90a5-455b-849e-5492187cbc1f" />
+
+
 
 렌즈 왜곡은 일반적으로 다음과 같은 계수로 표현됩니다.
 
