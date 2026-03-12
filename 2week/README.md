@@ -1,4 +1,4 @@
-# OpenCV Practice 01  
+# OpenCV Practice 0011  
 이미지 불러오기 및 Grayscale 변환
 
 본 실습의 목적은 OpenCV를 이용하여 이미지를 불러오고, 해당 이미지를 Grayscale(흑백 이미지)로 변환한 뒤 원본 이미지와 함께 화면에 출력하는 것입니다.
