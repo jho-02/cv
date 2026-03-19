@@ -31,4 +31,111 @@ Gradient는 이미지에서 픽셀 값이 얼마나 빠르게 변하는지를 �
 
 일반적으로 기울기는 두 방향으로 계산됩니다.
 
+<img width="217" height="69" alt="image" src="https://github.com/user-attachments/assets/c7b1f4ea-bc50-4301-900f-cebed50955dd" />
+
 이 두 값을 이용하면 전체 에지 강도를 다음과 같이 계산할 수 있습니다.
+
+<img width="229" height="66" alt="image" src="https://github.com/user-attachments/assets/789cbce0-cc1c-4ce2-84bf-25a398e1c5b6" />
+
+강의 자료에서는 이 값을 Edge Strength라고 설명하며, x축과 y축 방향의 에지 정보를 함께 고려한 최종 에지 강도라고 제시하고 있습니다.
+
+Sobel Operator
+
+Sobel 연산자는 영상의 1차 미분을 근사하여 에지를 검출하는 대표적인 방법입니다.
+단순한 미분 연산은 노이즈에 민감하고 방향 정보가 부족하다는 한계가 있지만, 강의 자료에서는 이를 3×3 필터로 확장한 Prewitt, Sobel 같은 연산자를 사용하면 더 안정적이고 방향 정보를 제공할 수 있다고 설명합니다. 또한 가까운 픽셀에 더 큰 가중치를 주기 때문에 노이즈를 줄이고 더 부드러운 gradient를 계산할 수 있다고 정리하고 있습니다.
+
+Sobel 연산의 특징은 다음과 같습니다.
+- x 방향과 y 방향의 변화량을 각각 계산할 수 있음
+- 에지의 방향성을 일부 파악할 수 있음
+- 단순 미분보다 안정적임
+- 구현이 직관적이고 계산량이 비교적 작음
+이번 과제에서 사용한 Sobel 연산은 3×3 커널을 기반으로 수행되며, 실습 과제에서도 cv.Sobel()의 ksize를 3 또는 5로 설정하도록 나와있습니다.
+
+Grayscale 변환
+
+컬러 이미지는 일반적으로 B, G, R 세 개의 채널로 구성됩니다.
+하지만 에지 검출은 색상 자체보다 밝기 변화량을 기반으로 수행되기 때문에, 먼저 이미지를 Grayscale로 변환하여 하나의 밝기 정보만 사용하는 것이 일반적입니다. 
+이전 OpenCV 실습 자료에서도 컬러 이미지를 그레이스케일로 변환하는 과정이 기본적인 전처리 단계로 제시되며
+밝기 기반 분석을 위해 cv.cvtColor()를 사용하는 방법이 소개되어 있습니다.
+그레이스케일로 변환하면 연산이 단순해지고, 에지 검출에 필요한 핵심 정보인 밝기 변화에 집중할 수 있습니다.
+
+Edge Strength와 자료형
+
+Sobel 연산 결과는 단순한 0과 255 값이 아니라, 음수와 실수를 포함하는 gradient 값으로 계산됩니다.
+강의 자료에서도
+
+<img width="64" height="35" alt="image" src="https://github.com/user-attachments/assets/f02c65d5-8235-45c9-8ccd-0901e06ce313" />
+
+
+에지 강도, 에지 방향은 음수를 포함하는 실수이므로 32비트 실수형(cv.CV_32F) 또는 이에 준하는 실수형 자료형을 사용하는 것이 안전하다고 설명합니다.
+
+실습 과제에서는 cv.CV_64F를 사용하여 Sobel 값을 계산하고, 이후 cv.convertScaleAbs()를 통해 시각화 가능한 uint8 이미지로 변환하도록 요구하고 있습니다.
+이 과정을 통해 계산 단계에서는 정확한 실수값을 유지하고, 출력 단계에서는 사람이 보기 쉬운 형태로 변환할 수 있습니다.
+
+주요 코드 설명
+
+1. 이미지 불러오기
+먼저 cv.imread()를 사용하여 입력 이미지를 불러왔습니다.
+이미지를 정상적으로 읽지 못하는 경우 이후 연산을 수행할 수 없으므로, None 여부를 확인하여 예외 처리를 하였습니다. 실습 과제에서도 cv.imread()를 사용하여 이미지를 불러오는 것이 첫 번째 요구사항으로 제시되어 있습니다.
+'''
+img = cv.imread("3week/image/edgeDetectionImage.jpg")
+
+if img is None:
+    print("이미지를 불러오지 못했습니다.")
+    exit()
+'''
+
+2. 그레이스케일 변환
+에지 검출은 밝기 변화량을 기준으로 수행되므로, 컬러 이미지를 그대로 사용하지 않고 cv.cvtColor()를 이용하여 그레이스케일 이미지로 변환하였습니다.
+이 과정은 에지 검출의 전처리 단계로, 색상 정보 대신 구조적 밝기 정보만 사용하기 위한 것입니다.
+'''
+gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+'''
+
+
+3. Sobel 필터를 이용한 x, y 방향 에지 검출
+그레이스케일 이미지에 대해 Sobel 연산을 각각 x 방향과 y 방향으로 수행하였습니다.
+- x 방향 Sobel : 세로 경계 검출에 유리
+- y 방향 Sobel : 가로 경계 검출에 유리
+실습 과제에서는 cv.Sobel()을 사용하여 x축 방향은 (cv.CV_64F, 1, 0), y축 방향은 (cv.CV_64F, 0, 1) 형태로 계산하도록 요구하고 있습니다.
+이 과정을 통해 이미지의 각 방향에서 밝기 변화량을 얻을 수 있으며, 특정 방향에 강한 경계가 어디에 있는지 알 수 있습니다.
+'''
+grad_x = cv.Sobel(gray, cv.CV_64F, 1, 0, ksize=3)
+grad_y = cv.Sobel(gray, cv.CV_64F, 0, 1, ksize=3)
+'''
+
+4. 에지 강도 계산
+x 방향과 y 방향의 Sobel 결과를 각각 구한 뒤, cv.magnitude()를 사용하여 두 기울기를 결합하였습니다.
+이 과정은 한 방향의 정보만 보는 것이 아니라 전체적인 경계 강도를 계산하기 위한 단계입니다.
+'''
+magnitude = cv.magnitude(grad_x, grad_y)
+edge_strength = cv.convertScaleAbs(magnitude)
+'''
+
+5. 결과를 시각화 가능한 형태로 변환
+Sobel과 magnitude의 결과는 실수형 값으로 계산되므로, 이를 그대로 출력하면 일반 이미지처럼 보기 어렵습니다.
+따라서 cv.convertScaleAbs()를 이용하여 uint8 형태로 변환하였습니다.
+'''
+img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+'''
+
+6. 원본 이미지와 결과 이미지 시각화
+마지막으로 Matplotlib를 사용하여 원본 이미지와 에지 강도 이미지를 나란히 출력하였습니다.
+이때 에지 강도 이미지는 흑백 이미지이므로 plt.imshow()에서 cmap='gray'를 사용하여 시각화하였습니다. 이 역시 실습 과제에서 명시적으로 제시된 요구사항입니다.
+이를 통해 원본 이미지에서는 보이지 않던 경계 정보가 에지 강도 이미지에서 어떻게 강조되는지를 한눈에 비교할 수 있습니다.
+'''
+plt.figure(figsize=(10, 5))
+
+plt.subplot(1, 2, 1)
+plt.imshow(img_rgb)
+plt.title("Original Image")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(edge_strength, cmap="gray")
+plt.title("Edge Strength")
+plt.axis("off")
+
+plt.tight_layout()
+plt.show()
+'''
