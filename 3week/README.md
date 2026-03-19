@@ -390,3 +390,284 @@ plt.tight_layout()
 plt.show()  
 # 최종 결과를 화면에 출력합니다.
 ```
+
+과제 3 : GrabCut을 이용한 영역 분할
+
+과제 설명
+
+3번 과제에서는 이미지에서 전경 객체와 배경을 분리하기 위해 GrabCut 알고리즘을 사용하였습니다.
+이미지 분할(Image Segmentation)은 컴퓨터 비전에서 매우 중요한 작업 중 하나로 이미지 안에 있는 객체와 배경을 구분하여 의미 있는 영역을 추출하는 과정입니다. 
+사람은 이미지를 보면 컵, 접시, 숟가락과 같은 물체를 자연스럽게 구분할 수 있지만 컴퓨터는 이를 픽셀 단위의 데이터로 인식하기 때문에 전경과 배경을 나누는 별도의 과정이 필요합니다.
+또한 OpenCV의 grabCut() 함수를 이용하여 컵 이미지에서 전경 객체를 분리하였습니다.
+먼저 이미지를 불러오고, GrabCut 수행에 필요한 마스크와 모델 배열을 초기화하였습니다. 이후 객체가 포함될 것으로 예상되는 초기 사각형 영역을 지정한 뒤
+GrabCut 알고리즘을 이용하여 전경과 배경을 분리하였습니다. 마지막으로 생성된 마스크를 이용하여 배경이 제거된 결과 이미지를 만들고, 원본 이미지, 마스크 이미지, 배경 제거 이미지를 함께 출력하여 결과를 확인하였습니다.
+
+배경 지식
+
+Image Segmentation
+
+Image Segmentation은 이미지를 여러 개의 의미 있는 영역으로 나누는 과정입니다.
+예를 들어 하나의 이미지 안에 컵, 접시, 숟가락, 배경이 함께 있을 때, 이들을 각각 구분하여 객체 단위로 나누는 것이 영상 분할의 목적입니다.
+영상 분할은 다음과 같은 분야에서 활용됩니다.
+
+- 객체 추출
+- 배경 제거
+- 이미지 편집
+- 의료 영상 분석
+- 자율주행 및 장면 이해
+  
+Image Segmentation은 단순히 픽셀을 처리하는 것이 아니라 이미지 안에서 어떤 부분이 하나의 객체를 이루는지 구분하는 과정이라고 볼 수 있습니다
+
+GrabCut 알고리즘
+
+GrabCut은 전경과 배경을 분리하기 위한 대표적인 대화식(Interactive) 영상 분할 알고리즘입니다.
+사용자가 객체가 포함된 대략적인 사각형 영역을 지정하면, 알고리즘이 이 정보를 바탕으로 전경과 배경을 반복적으로 추정하여 더 정교한 분할 결과를 만들어냅니다.
+
+GrabCut의 기본 동작 과정은 다음과 같습니다.
+
+- 초기 사각형 영역 설정
+- 사각형 바깥 영역을 배경으로 가정
+- 사각형 내부를 전경 후보로 가정
+- 전경과 배경의 색상 분포를 모델링
+- 반복적으로 전경/배경을 갱신하며 최적의 분할 결과 생성
+
+이 방법은 사용자가 픽셀 단위로 직접 라벨링하지 않아도 된다는 장점이 있습니다.
+
+Gaussian Mixture Model (GMM)
+
+GrabCut은 전경과 배경의 색상 분포를 표현하기 위해 Gaussian Mixture Model을 사용합니다.
+이는 픽셀 값의 분포를 하나의 단순한 값으로 보는 것이 아니라 여러 개의 가우시안 분포를 조합하여 보다 유연하게 표현하는 방법입니다.
+전경과 배경은 일반적으로 서로 다른 색상 분포를 가지므로 GrabCut은 이러한 차이를 이용하여 어떤 픽셀이 전경에 속하는지 어떤 픽셀이 배경에 속하는지를 추정합니다.
+
+GrabCut 마스크 값
+
+GrabCut 수행 후 생성되는 마스크는 각 픽셀을 다음과 같이 구분합니다.
+
+- cv.GC_BGD : 확실한 배경
+- cv.GC_PR_BGD : 배경일 가능성이 높은 영역
+- cv.GC_FGD : 확실한 전경
+- cv.GC_PR_FGD : 전경일 가능성이 높은 영역
+
+3번 과제에서는 이 값을 다시 0과 1로 변환하여 사용하였습니다.
+
+- 배경 → 0
+- 전경 → 1
+
+이 과정을 통해 최종적으로 전경만 남는 마스크 이미지를 만들 수 있습니다.
+
+
+주요 코드 설명
+
+1. 이미지 불러오기
+
+먼저 cv.imread()를 사용하여 입력 이미지를 불러옵니다.
+이미지가 정상적으로 읽히지 않을 경우 이후 연산을 수행할 수 없으므로 None 여부를 확인합니다.
+```
+img = cv.imread("3week/image/coffee cup.JPG")
+
+if img is None:
+    print("이미지를 불러오지 못했습니다.")
+    exit()
+```
+
+2. RGB 변환
+
+OpenCV는 이미지를 BGR 형식으로 읽어오지만, Matplotlib는 RGB 형식으로 이미지를 출력합니다.
+따라서 올바른 색상으로 출력하기 위해 RGB 형식으로 변환합니다.
+```
+img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+```
+
+3. 이미지 크기 저장
+
+이미지의 높이와 너비를 저장하여 이후 마스크 생성과 사각형 영역 설정에 활용합니다.
+```
+h, w = img.shape[:2]
+```
+
+4. 마스크 및 모델 초기화
+
+GrabCut 수행에 필요한 마스크와 두 개의 모델 배열을 초기화합니다.
+```
+mask = np.zeros((h, w), np.uint8)
+bgdModel = np.zeros((1, 65), np.float64)
+fgdModel = np.zeros((1, 65), np.float64)
+```
+
+- mask : 각 픽셀이 전경인지 배경인지 저장하는 배열
+- bgdModel : 배경 모델
+- fgdModel : 전경 모델
+
+이 두 모델은 GrabCut 내부에서 색상 분포를 추정하는 데 사용됩니다.
+
+5. 초기 사각형 영역 설정
+
+객체가 포함될 것으로 예상되는 영역을 사각형 형태로 지정합니다.
+```
+rect = (
+    50,
+    50,
+    w - 100,
+    h - 100
+)
+```
+이 사각형은 (x, y, width, height) 형식이며,
+이미지 가장자리에서 일정 거리 안쪽을 전경 후보 영역으로 설정하는 역할을 합니다.
+
+6. GrabCut 수행
+
+설정한 사각형 영역을 기반으로 GrabCut 알고리즘을 적용합니다.
+```
+cv.grabCut(img, mask, rect, bgdModel, fgdModel, 5, cv.GC_INIT_WITH_RECT)
+```
+여기서 각 인자의 의미는 다음과 같습니다.
+
+- img : 입력 이미지
+- mask : 전경/배경 마스크
+- rect : 초기 사각형 영역
+- bgdModel : 배경 모델
+- fgdModel : 전경 모델
+- 5 : 반복 횟수
+- cv.GC_INIT_WITH_RECT : 사각형 기반 초기화 모드
+
+7. 마스크 값을 0과 1로 변환
+
+GrabCut 결과에서 배경과 전경을 구분하여 새로운 마스크를 생성합니다.
+```
+mask2 = np.where(
+    (mask == cv.GC_BGD) | (mask == cv.GC_PR_BGD),
+    0,
+    1
+).astype("uint8")
+```
+
+이 코드는 확실한 배경과 배경 가능성이 높은 영역을 0으로,
+그 외 영역을 1로 변환하여 최종 마스크 이미지를 생성합니다.
+
+8. 배경 제거 이미지 생성
+
+생성한 마스크를 원본 이미지에 적용하여 전경만 남긴 결과 이미지를 만듭니다.
+```
+result = img_rgb * mask2[:, :, np.newaxis]
+```
+mask2는 2차원 배열이므로, 컬러 이미지와 곱하기 위해 np.newaxis를 사용하여 차원을 확장합니다.
+
+9. 결과 시각화
+
+원본 이미지, 마스크 이미지, 배경 제거 이미지를 나란히 출력하여 결과를 비교합니다.
+```
+plt.figure(figsize=(15, 5))
+
+plt.subplot(1, 3, 1)
+plt.imshow(img_rgb)
+plt.title("Original Image")
+plt.axis("off")
+
+plt.subplot(1, 3, 2)
+plt.imshow(mask2 * 255, cmap="gray")
+plt.title("Mask Image")
+plt.axis("off")
+
+plt.subplot(1, 3, 3)
+plt.imshow(result)
+plt.title("Background Removed")
+plt.axis("off")
+
+plt.tight_layout()
+plt.show()
+```
+마스크 이미지는 흑백으로 보기 쉽게 mask2 * 255 형태로 출력하였습니다.
+
+실습결과
+
+<img width="1493" height="429" alt="image" src="https://github.com/user-attachments/assets/eb244075-bdb9-4c33-9290-11da54eb3135" />
+
+전체코드
+```
+import cv2 as cv  # OpenCV 라이브러리를 cv라는 이름으로 불러옵니다.
+import numpy as np  # 배열 생성 및 연산을 위해 NumPy를 불러옵니다.
+import matplotlib.pyplot as plt  # 이미지 출력 및 시각화를 위해 matplotlib를 불러옵니다.
+
+img = cv.imread("3week/image/coffee cup.JPG")  # 분석에 사용할 이미지를 파일 경로에서 불러옵니다.
+
+if img is None:  # 이미지가 정상적으로 불러와졌는지 확인합니다.
+    print("이미지를 불러오지 못했습니다.")
+    exit()  # 이미지가 없으면 이후 처리를 할 수 없으므로 프로그램을 종료합니다.
+
+img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+# OpenCV는 이미지를 BGR 형식으로 읽기 때문에,
+# matplotlib에서 올바른 색상으로 출력하기 위해 RGB로 변환합니다.
+
+h, w = img.shape[:2]
+# 이미지의 높이(h)와 너비(w)를 가져옵니다.
+# 이후 마스크 생성과 영역 설정에 사용됩니다.
+
+mask = np.zeros((h, w), np.uint8)
+# GrabCut에서 사용할 마스크를 생성합니다.
+# 처음에는 모든 값을 0(배경)으로 초기화합니다.
+
+bgdModel = np.zeros((1, 65), np.float64)
+# 배경 모델을 저장하기 위한 배열을 생성합니다.
+# GrabCut 내부에서 배경 색상 분포를 학습하는 데 사용됩니다.
+
+fgdModel = np.zeros((1, 65), np.float64)
+# 전경 모델을 저장하기 위한 배열을 생성합니다.
+# GrabCut 내부에서 전경 색상 분포를 학습하는 데 사용됩니다.
+
+rect = (
+    50,
+    50,
+    w - 100,
+    h - 100
+)
+# 전경이 포함될 것으로 예상되는 초기 사각형 영역을 설정합니다.
+# (x, y, width, height) 형태이며, 이미지 가장자리에서 일정 부분을 제외한 영역입니다.
+
+cv.grabCut(img, mask, rect, bgdModel, fgdModel, 5, cv.GC_INIT_WITH_RECT)
+# GrabCut 알고리즘을 실행합니다.
+# 사각형(rect) 내부는 전경 후보, 외부는 배경으로 가정하여 분할을 시작합니다.
+# 5는 반복 횟수이며, 반복을 통해 더 정교한 결과를 얻습니다.
+
+mask2 = np.where(
+    (mask == cv.GC_BGD) | (mask == cv.GC_PR_BGD),
+    0,
+    1
+).astype("uint8")
+# GrabCut 결과 마스크를 0과 1로 변환합니다.
+# 확실한 배경과 배경 가능 영역은 0,
+# 전경과 전경 가능 영역은 1로 설정하여 새로운 마스크를 생성합니다.
+
+result = img_rgb * mask2[:, :, np.newaxis]
+# 생성한 마스크를 원본 이미지에 적용합니다.
+# mask2는 2차원 배열이므로 np.newaxis를 이용해 3채널로 확장한 뒤 곱합니다.
+# 결과적으로 전경만 남고 배경은 제거됩니다.
+
+plt.figure(figsize=(15, 5))
+# 출력 화면의 전체 크기를 설정합니다.
+
+plt.subplot(1, 3, 1)
+# 1행 3열 중 첫 번째 위치에 원본 이미지를 출력합니다.
+plt.imshow(img_rgb)
+plt.title("Original Image")
+plt.axis("off")
+# 축 정보는 필요 없으므로 숨깁니다.
+
+plt.subplot(1, 3, 2)
+# 두 번째 위치에 마스크 이미지를 출력합니다.
+plt.imshow(mask2 * 255, cmap="gray")
+# mask2는 0과 1 값이므로 255를 곱해 흑백 이미지로 보기 쉽게 변환합니다.
+plt.title("Mask Image")
+plt.axis("off")
+
+plt.subplot(1, 3, 3)
+# 세 번째 위치에 배경이 제거된 결과 이미지를 출력합니다.
+plt.imshow(result)
+plt.title("Background Removed")
+plt.axis("off")
+
+plt.tight_layout()
+# subplot 간의 간격을 자동으로 조정하여 겹치지 않도록 합니다.
+
+plt.show()
+# 최종 결과를 화면에 출력합니다.
+```
