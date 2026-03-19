@@ -77,20 +77,20 @@ Sobel 연산 결과는 단순한 0과 255 값이 아니라, 음수와 실수를 
 1. 이미지 불러오기
 먼저 cv.imread()를 사용하여 입력 이미지를 불러왔습니다.
 이미지를 정상적으로 읽지 못하는 경우 이후 연산을 수행할 수 없으므로, None 여부를 확인하여 예외 처리를 하였습니다. 실습 과제에서도 cv.imread()를 사용하여 이미지를 불러오는 것이 첫 번째 요구사항으로 제시되어 있습니다.
-'''
+```
 img = cv.imread("3week/image/edgeDetectionImage.jpg")
 
 if img is None:
     print("이미지를 불러오지 못했습니다.")
     exit()
-'''
+```
 
 2. 그레이스케일 변환
 에지 검출은 밝기 변화량을 기준으로 수행되므로, 컬러 이미지를 그대로 사용하지 않고 cv.cvtColor()를 이용하여 그레이스케일 이미지로 변환하였습니다.
 이 과정은 에지 검출의 전처리 단계로, 색상 정보 대신 구조적 밝기 정보만 사용하기 위한 것입니다.
-'''
+```
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-'''
+```
 
 
 3. Sobel 필터를 이용한 x, y 방향 에지 검출
@@ -99,31 +99,30 @@ gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 - y 방향 Sobel : 가로 경계 검출에 유리
 실습 과제에서는 cv.Sobel()을 사용하여 x축 방향은 (cv.CV_64F, 1, 0), y축 방향은 (cv.CV_64F, 0, 1) 형태로 계산하도록 요구하고 있습니다.
 이 과정을 통해 이미지의 각 방향에서 밝기 변화량을 얻을 수 있으며, 특정 방향에 강한 경계가 어디에 있는지 알 수 있습니다.
-'''
+```
 grad_x = cv.Sobel(gray, cv.CV_64F, 1, 0, ksize=3)
 grad_y = cv.Sobel(gray, cv.CV_64F, 0, 1, ksize=3)
-'''
+```
 
 4. 에지 강도 계산
 x 방향과 y 방향의 Sobel 결과를 각각 구한 뒤, cv.magnitude()를 사용하여 두 기울기를 결합하였습니다.
 이 과정은 한 방향의 정보만 보는 것이 아니라 전체적인 경계 강도를 계산하기 위한 단계입니다.
-'''
+```
 magnitude = cv.magnitude(grad_x, grad_y)
 edge_strength = cv.convertScaleAbs(magnitude)
-'''
+```
 
 5. 결과를 시각화 가능한 형태로 변환
 Sobel과 magnitude의 결과는 실수형 값으로 계산되므로, 이를 그대로 출력하면 일반 이미지처럼 보기 어렵습니다.
 따라서 cv.convertScaleAbs()를 이용하여 uint8 형태로 변환하였습니다.
-'''
+```
 img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-'''
-
+```
 6. 원본 이미지와 결과 이미지 시각화
 마지막으로 Matplotlib를 사용하여 원본 이미지와 에지 강도 이미지를 나란히 출력하였습니다.
 이때 에지 강도 이미지는 흑백 이미지이므로 plt.imshow()에서 cmap='gray'를 사용하여 시각화하였습니다. 이 역시 실습 과제에서 명시적으로 제시된 요구사항입니다.
 이를 통해 원본 이미지에서는 보이지 않던 경계 정보가 에지 강도 이미지에서 어떻게 강조되는지를 한눈에 비교할 수 있습니다.
-'''
+```
 plt.figure(figsize=(10, 5))
 
 plt.subplot(1, 2, 1)
@@ -138,4 +137,4 @@ plt.axis("off")
 
 plt.tight_layout()
 plt.show()
-'''
+```
