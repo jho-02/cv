@@ -3,12 +3,10 @@
 과제 설명
 
 Edge Detection은 이미지에서 물체의 경계나 밝기 변화가 큰 부분을 찾아내는 과정입니다.
-사람은 이미지를 보면 사물의 형태와 윤곽을 자연스럽게 구분할 수 있지만, 컴퓨터는 이미지를 단순한 픽셀 값의 집합으로 인식하기 때문에 이러한 구조를 직접 이해하지 못합니다. 따라서 Computer Vision에서는 픽셀 값이 급격하게 변하는 부분을 찾아 물체의 형태를 파악하는 과정이 중요하며, 이를 위해 Edge Detection이 널리 사용됩니다. 강의 자료에서도 에지 검출은 컴퓨터 비전에서 물체를 찾는 가장 기본적인 단서가 경계라는 점에서 중요한 문제로 다루어진다고 설명합니다.
-
-본 과제에서는 OpenCV를 이용하여 이미지에서 에지를 검출하였습니다.
+사람은 이미지를 보면 사물의 형태와 윤곽을 자연스럽게 구분할 수 있지만, 컴퓨터는 이미지를 단순한 픽셀 값의 집합으로 인식하기 때문에 이러한 구조를 직접 이해하지 못합니다. 따라서 Computer Vision에서는 픽셀 값이 급격하게 변하는 부분을 찾아 물체의 형태를 파악하는 과정이 중요하며, 이를 위해 Edge Detection이 널리 사용됩니다.
+과제에서는 OpenCV를 이용하여 이미지에서 에지를 검출하였습니다.
 먼저 입력 이미지를 Grayscale로 변환한 뒤, Sobel 연산자를 사용하여 x 방향과 y 방향의 밝기 변화량을 각각 계산하였습니다. 이후 두 방향의 기울기 값을 결합하여 최종적인 에지 강도를 구하고, 이를 시각화하여 원본 이미지와 비교하였습니다. 실습 과제에서도 edgeDetectionImage를 그레이스케일로 변환하고, Sobel 필터를 사용해 x축과 y축 방향의 에지를 검출한 후, cv.magnitude()를 통해 에지 강도를 계산하여 원본 이미지와 함께 시각화하도록 요구하고 있습니다.
 
-이번 과제를 통해 이미지의 미분 기반 특징 추출 방법을 이해하고, 에지가 물체의 형태와 경계를 표현하는 데 어떤 역할을 하는지 확인할 수 있었습니다.
 
 배경 지식
 Edge Detection
@@ -202,4 +200,193 @@ plt.tight_layout()
 
 # 최종 결과 화면에 출력
 plt.show()
+```
+
+과제 2 : Canny Edge Detection과 Hough Transform을 이용한 직선 검출
+
+과제 설명
+
+본 과제에서는 이미지에서 직선 구조를 검출하기 위해 Canny Edge Detection과 Hough Transform을 활용하였습니다.
+이미지에는 다양한 색상과 질감 정보가 포함되어 있기 때문에, 바로 직선을 검출하기보다는 먼저 경계 정보를 추출하는 과정이 필요합니다.
+
+따라서 먼저 입력 이미지를 그레이스케일로 변환한 후, Canny 알고리즘을 이용하여 에지를 검출하였습니다. 이후 HoughLinesP 함수를 사용하여 에지 이미지에서 직선으로 판단되는 선분을 추출하였으며
+검출된 직선을 원본 이미지 위에 표시하였습니다. 마지막으로 원본 이미지와 직선 검출 결과 이미지를 함께 출력하여 비교하였습니다.
+
+배경 지식
+
+Canny Edge Detection
+
+Canny Edge Detection은 이미지에서 경계를 안정적으로 검출하기 위한 대표적인 알고리즘입니다.
+단순히 밝기 변화가 큰 부분을 찾는 것이 아니라, 노이즈를 줄이고 실제 경계일 가능성이 높은 부분만 선택적으로 남기는 특징을 가지고 있습니다.
+일반적으로 다음과 같은 과정을 통해 에지를 검출합니다.
+- 밝기 변화 계산
+- 강한 에지와 약한 에지 구분
+- 연결된 에지만 최종적으로 유지
+이 방법은 이후 직선 검출과 같은 고차원 처리 과정에서 중요한 전처리 단계로 사용됩니다.
+
+Hough Transform
+
+Hough Transform은 이미지에서 직선과 같은 기하학적 구조를 검출하기 위한 방법입니다.
+에지로 검출된 픽셀들이 특정 직선을 형성할 가능성을 누적하여 가장 가능성이 높은 직선을 찾아내는 방식으로 동작합니다.
+
+본 과제에서는 Probabilistic Hough Transform 방식인 cv.HoughLinesP()를 사용하였습니다.
+이 방법은 직선을 선분 형태로 반환하므로, 이미지 위에 직접 시각화하기에 적합합니다.
+
+주요 코드 설명
+1. 이미지 불러오기
+
+이미지를 불러온 뒤, 정상적으로 로드되었는지 확인합니다.
+```
+img = cv.imread("3week/image/dabo.jpg")
+
+if img is None:
+    print("이미지를 불러오지 못했습니다.")
+    exit()
+```
+2. 그레이스케일 변환
+
+에지 검출은 밝기 기반으로 수행되므로, 컬러 이미지를 그레이스케일로 변환합니다.
+```
+gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+```
+
+3. Canny Edge Detection
+
+Canny 알고리즘을 사용하여 이미지의 경계(에지)를 추출합니다.
+```
+edges = cv.Canny(gray, 100, 200)
+```
+
+4. 직선 검출을 위한 이미지 복사
+
+원본 이미지를 보존하기 위해 복사본을 생성합니다.
+```
+line_img = img.copy()
+```
+
+5. Hough Transform을 이용한 직선 검출
+```
+lines = cv.HoughLinesP(
+    edges,
+    rho=1,
+    theta=np.pi / 180,
+    threshold=140,
+    minLineLength=45,
+    maxLineGap=3
+)
+```
+Canny로 검출된 에지 이미지에서 직선 형태를 갖는 선분을 찾아냅니다.
+
+6. 검출된 직선 그리기 
+```
+if lines is not None:
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+```
+
+검출된 직선을 원본 이미지 복사본 위에 빨간색 선으로 표시합니다.
+
+7. 이미지 출력을 위한 색상 변환
+```
+img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+line_img_rgb = cv.cvtColor(line_img, cv.COLOR_BGR2RGB)
+```
+Matplotlib에서 올바른 색으로 출력하기 위해 BGR을 RGB로 변환합니다.
+
+8. 결과 시각화
+```
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+plt.imshow(img_rgb)
+plt.title("Original Image")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(line_img_rgb)
+plt.title("Detected Lines")
+plt.axis("off")
+
+plt.tight_layout()
+plt.show()
+```
+원본 이미지와 직선 검출 결과를 나란히 출력하여 비교할 수 있도록 합니다.
+
+실습 결과
+
+<img width="1186" height="479" alt="image" src="https://github.com/user-attachments/assets/2a978279-59ce-44e0-a368-548ebe45dfd4" />
+
+과제 2 전체코드
+```
+import cv2 as cv  # OpenCV 라이브러리를 cv라는 이름으로 불러옵니다.
+import numpy as np  # pi 값과 수치 계산에 사용할 NumPy를 불러옵니다.
+import matplotlib.pyplot as plt  # 결과 이미지를 화면에 출력하기 위해 matplotlib를 불러옵니다.
+
+img = cv.imread("3week/image/dabo.jpg")  # 직선 검출에 사용할 원본 이미지를 불러옵니다.
+
+if img is None:  # 이미지가 정상적으로 불러와졌는지 확인합니다.
+    print("이미지를 불러오지 못했습니다.")
+    exit()  # 이미지가 없으면 이후 연산을 진행할 수 없으므로 프로그램을 종료합니다.
+
+gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)  
+# Canny 에지 검출은 밝기 변화량을 기준으로 수행되므로
+# 컬러 이미지를 그레이스케일 이미지로 변환합니다.
+
+edges = cv.Canny(gray, 100, 200)  
+# Canny 알고리즘을 이용하여 에지를 검출합니다.
+# 100은 낮은 임계값, 200은 높은 임계값입니다.
+
+line_img = img.copy()  
+# 검출된 직선을 그릴 이미지를 만들기 위해 원본 이미지를 복사합니다.
+# 원본 이미지를 그대로 유지하기 위해 copy()를 사용합니다.
+
+lines = cv.HoughLinesP(
+    edges,                  # 입력 에지 이미지
+    rho=1,                  # 거리 해상도: 1픽셀 단위로 직선을 검출합니다.
+    theta=np.pi / 180,      # 각도 해상도: 1도 단위로 직선을 검출합니다.
+    threshold=140,          # 직선으로 인정하기 위한 최소 투표 수입니다.
+    minLineLength=45,       # 직선으로 인정할 최소 선 길이입니다.
+    maxLineGap=3            # 끊어진 선분을 하나의 직선으로 연결할 최대 간격입니다.
+)
+
+if lines is not None:  # 직선이 하나라도 검출되었는지 확인합니다.
+    for line in lines:  # 검출된 모든 직선에 대해 반복합니다.
+        x1, y1, x2, y2 = line[0]  
+        # HoughLinesP의 결과는 [[x1, y1, x2, y2]] 형태이므로
+        # line[0]에서 시작점과 끝점 좌표를 꺼냅니다.
+
+        cv.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)  
+        # 복사한 이미지 위에 검출된 직선을 그립니다.
+        # (0, 0, 255)는 빨간색, 2는 선 두께를 의미합니다.
+
+img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)  
+# OpenCV는 이미지를 BGR 형식으로 읽기 때문에
+# matplotlib에서 올바른 색으로 출력하기 위해 RGB 형식으로 변환합니다.
+
+line_img_rgb = cv.cvtColor(line_img, cv.COLOR_BGR2RGB)  
+# 직선이 그려진 결과 이미지 역시 matplotlib 출력용으로 RGB 형식으로 변환합니다.
+
+plt.figure(figsize=(12, 5))  
+# 전체 출력 창의 크기를 설정합니다.
+
+plt.subplot(1, 2, 1)  
+# 1행 2열 중 첫 번째 영역에 원본 이미지를 출력합니다.
+plt.imshow(img_rgb)
+plt.title("Original Image")
+plt.axis("off")  
+# 축 눈금은 필요하지 않으므로 숨깁니다.
+
+plt.subplot(1, 2, 2)  
+# 1행 2열 중 두 번째 영역에 직선 검출 결과 이미지를 출력합니다.
+plt.imshow(line_img_rgb)
+plt.title("Detected Lines")
+plt.axis("off")  
+# 축 눈금을 숨겨 결과만 깔끔하게 보이도록 합니다.
+
+plt.tight_layout()  
+# subplot 사이의 간격을 자동으로 정리합니다.
+
+plt.show()  
+# 최종 결과를 화면에 출력합니다.
 ```
