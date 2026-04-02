@@ -1,542 +1,495 @@
-과제 1 : SIFT를 이용한 특징점 검출 및 시각화
-과제 설명
+1번 과제: 간단한 이미지 분류기 구현
+1. 과제 개요
 
-1번 과제에서는 주어진 이미지(mot_color70.jpg)를 이용하여 SIFT(Scale-Invariant Feature Transform) 알고리즘을 적용하고
-이미지 내의 특징점을 검출 및 시각화했습니다.
-SIFT는 이미지에서 의미 있는 구조적 정보를 가지는 지점을 특징점으로 검출하고, 
-이를 기술자(descriptor)로 표현하는 알고리즘이다. 본 실습에서는 해당 특징점을 추출한 후
-원본 이미지와 특징점이 표시된 이미지를 나란히 출력하여 시각적으로 확인했습니다.
+이번 과제는 손글씨 숫자 이미지 데이터셋인 MNIST를 이용하여 간단한 이미지 분류기를 구현하는 것이다.
+MNIST는 0부터 9까지의 손글씨 숫자 이미지로 이루어진 대표적인 이미지 분류 데이터셋이며, 컴퓨터 비전과 딥러닝 입문에서 가장 많이 사용되는 기초 데이터셋 중 하나이다.
 
-배경 지식
-1. Local Feature
+이번 실습에서는 MNIST 데이터를 불러온 뒤, 훈련 데이터와 테스트 데이터를 사용하여 간단한 신경망 모델을 학습시키고, 최종적으로 테스트 정확도를 확인하였다. 과제 요구사항 역시 MNIST 데이터셋을 로드하고, 간단한 신경망을 구성한 뒤 모델을 훈련시키고 정확도를 평가하는 것이다.
 
-Local Feature는 이미지 전체가 아닌 특정 위치에서 추출되는 특징을 의미합니다.
-이러한 특징은 이미지의 일부가 변형되거나 가려지더라도 비교적 안정적으로 유지되기 때문에 이미지 매칭이나 객체 인식 등의 다양한 컴퓨터 비전 문제에서 활용됩니다.
+2. 배경지식
+2-1. MNIST 데이터셋
 
-2. SIFT (Scale-Invariant Feature Transform)
+MNIST는 손글씨 숫자 이미지 데이터셋으로, 각 이미지는 28×28 크기의 흑백 이미지이다.
+각 이미지에는 0~9 사이의 숫자 하나가 들어 있으며, 이미지 분류 문제의 가장 기본적인 예제로 자주 사용된다. 과제 자료에서도 손글씨 숫자 이미지는 28×28 픽셀 크기의 흑백 이미지라고 제시되어 있다.
 
-SIFT는 대표적인 지역 특징 추출 알고리즘으로, 다음과 같은 특성을 가집니다.
+2-2. 이미지 정규화
 
-- 크기 변화(scale)에 강인함
-- 회전(rotation)에 강인함
-- 조명 변화에도 비교적 안정적
+원본 이미지의 픽셀 값은 보통 0~255 범위를 가진다.
+이를 그대로 사용하면 학습이 비효율적일 수 있기 때문에, 보통 255로 나누어 0~1 범위로 정규화한 뒤 학습에 사용한다.
+이 과정은 학습 안정성을 높이고, 신경망이 더 빠르고 안정적으로 수렴하도록 돕는다.
 
-SIFT는 이미지에서 특징점을 검출하고, 각 특징점 주변의 패턴을 기반으로 고유한 기술자(descriptor)를 생성 하며 이후 이미지 간 대응점을 찾는 데 사용됩니다.
+2-3. 인공신경망(ANN)
 
-3. 특징점 시각화
+인공신경망은 입력값을 받아 여러 층을 거치며 특징을 학습하고, 마지막에 어떤 클래스인지 예측하는 모델이다.
+이번 과제에서는 CNN처럼 복잡한 구조가 아니라, 입력층 → 은닉층 → 출력층으로 이루어진 간단한 완전연결 신경망을 사용하였다.
 
-검출된 특징점은 단순한 점이 아니라 다음 정보를 포함합니다.
+2-4. 활성화 함수
+ReLU: 은닉층에서 사용되며, 음수는 0으로 만들고 양수는 그대로 전달한다. 학습 속도가 빠르고 자주 사용된다.
+Softmax: 출력층에서 사용되며, 10개의 숫자 클래스 각각에 대한 확률을 계산한다.
+2-5. 손실 함수와 정확도
+Loss(손실값): 모델의 예측이 실제 정답과 얼마나 차이가 나는지를 수치로 나타낸 값이다.
+Accuracy(정확도): 전체 데이터 중 맞춘 비율을 의미한다.
 
-- 위치 (x, y)
-- 크기 (scale)
-- 방향 (orientation)
+이번 과제에서는 손실 함수로 sparse_categorical_crossentropy를 사용했는데, 이는 정답 라벨이 0~9 같은 숫자 형태일 때 다중 분류 문제에서 자주 사용된다.
 
-cv.drawKeypoints()에서 DRAW_RICH_KEYPOINTS 옵션을 사용하면 이러한 정보를 시각적으로 함께 표현할 수 있습니다.
+3. 사용한 주요 알고리즘 및 구조 설명
+3-1. Sequential 모델
 
-주요 코드 설명
-1. 이미지 불러오기
+Sequential은 층을 순서대로 쌓아 올리는 가장 기본적인 모델 구성 방식이다.
+이번 과제처럼 구조가 단순한 신경망을 만들 때 사용하기 적합하다. 과제 힌트에서도 Sequential 모델을 활용하여 신경망을 구성하라고 제시되어 있다.
+
+3-2. Flatten
+
+MNIST 이미지는 28×28의 2차원 배열 형태이다.
+하지만 완전연결층(Dense)은 1차원 벡터를 입력으로 받기 때문에, 먼저 Flatten을 사용하여 28×28 이미지를 784차원 벡터로 펼쳐 준다.
+
+3-3. Dense
+
+Dense는 완전연결층을 의미한다.
+이번 코드에서는
+
+첫 번째 Dense 층: 128개의 뉴런, ReLU 활성화 함수 사용
+두 번째 Dense 층: 10개의 뉴런, Softmax 활성화 함수 사용
+
+으로 구성하였다.
+
+즉, 입력 이미지를 펼친 뒤 128개의 특징 표현으로 변환하고, 마지막에 10개의 숫자 클래스 중 하나로 분류하는 구조이다.
+
+3-4. Adam Optimizer
+
+adam은 신경망 학습에서 가장 널리 사용되는 최적화 알고리즘 중 하나이다.
+가중치를 자동으로 효율적으로 조정해 주기 때문에, 초보자가 사용하기에도 편리하고 성능도 안정적이다.
+
+4. 주요 코드 설명
+4-1. 데이터셋 불러오기
 ```
-img = cv.imread("mot_color70.jpg")
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 ```
+MNIST 데이터셋을 불러오는 부분이다.
+훈련용 데이터와 테스트용 데이터를 각각 나누어 가져온다.
 
-OpenCV의 cv.imread()를 사용하여 이미지를 불러옵니다.
-이미지를 정상적으로 읽지 못할 경우 None이 반환되므로 이를 확인하여 예외 처리를 수행했습니다.
-
-2. 색상 변환 (BGR → RGB)
+4-2. 데이터 크기 확인
 ```
-img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+print("훈련 데이터 크기:", x_train.shape)
+print("훈련 라벨 크기:", y_train.shape)
+print("테스트 데이터 크기:", x_test.shape)
+print("테스트 라벨 크기:", y_test.shape)
 ```
+불러온 데이터의 크기를 확인하는 부분이다.
+일반적으로 MNIST는 훈련 이미지 60000장, 테스트 이미지 10000장으로 구성된다.
 
-OpenCV는 이미지를 BGR 형식으로 읽기 때문에, Matplotlib에서 올바른 색상으로 출력하기 위해 RGB로 변환했습니다.
-
-3. SIFT 객체 생성
-
+4-3. 정규화
 ```
-sift = cv.SIFT_create(nfeatures=300)
+x_train = x_train / 255.0
+x_test = x_test / 255.0
 ```
-SIFT 객체를 생성하고, nfeatures=300 옵션을 통해 검출할 특징점의 개수를 제한했습니다.
-이는 특징점이 과도하게 많아지는 것을 방지하고 결과를 보다 명확하게 보기 위함입니다.
+이미지 픽셀 값을 0~1 범위로 변환하는 과정이다.
+학습 효율을 높이기 위해 수행한다.
 
-4. 특징점 검출 및 기술자 계산
-
+4-4. 모델 구성
 ```
-keypoints, descriptors = sift.detectAndCompute(img, None)
+model = Sequential([
+    Flatten(input_shape=(28, 28)),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
 ```
+간단한 신경망 모델을 정의한 부분이다.
 
-- keypoints: 특징점 위치, 크기, 방향 등의 정보
-- descriptors: 특징점을 수치적으로 표현한 벡터
+Flatten(input_shape=(28, 28)): 28×28 이미지를 1차원으로 펼침
+Dense(128, activation='relu'): 은닉층
+Dense(10, activation='softmax'): 10개 숫자 클래스로 분류하는 출력층
 
-이 단계에서 SIFT 알고리즘이 이미지의 중요한 지점을 자동으로 검출합니다.
-
-5. 특징점 시각화
-
+4-5. 모델 컴파일
 ```
-img_keypoints = cv.drawKeypoints(
-    img,
-    keypoints,
-    None,
-    flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
 )
 ```
-검출된 특징점을 이미지 위에 표시한다.
-DRAW_RICH_KEYPOINTS 옵션을 사용하여 특징점의 크기와 방향까지 함께 시각화했습니다.
+학습 방법을 설정하는 부분이다.
 
-실습 이미지
+optimizer='adam': 가중치 업데이트 방식
+loss='sparse_categorical_crossentropy': 다중 분류용 손실 함수
+metrics=['accuracy']: 학습 중 정확도 출력
 
-<img width="1918" height="617" alt="image" src="https://github.com/user-attachments/assets/0767978b-e734-4b45-841f-cd7c0394a7d5" />
-
-전체코드
-
+4-6. 모델 학습
 ```
-import cv2 as cv  # OpenCV 라이브러리를 cv라는 이름으로 사용합니다.
-import matplotlib.pyplot as plt  # 결과 이미지를 시각화하기 위해 matplotlib을 사용합니다.
-
-# 이미지 파일을 불러옵니다.
-img = cv.imread("mot_color70.jpg")
-
-# 이미지가 정상적으로 불러와졌는지 확인합니다.
-# 만약 None이라면 경로 문제 등으로 이미지를 읽지 못한 경우입니다.
-if img is None:
-    print("이미지를 불러오지 못했습니다.")
-    exit()
-
-# OpenCV는 기본적으로 BGR 형식으로 이미지를 읽기 때문에,
-# matplotlib에서 올바른 색으로 출력하기 위해 RGB로 변환합니다.
-img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-
-# SIFT 객체를 생성합니다.
-# nfeatures=300으로 설정하여 특징점 개수를 최대 300개로 제한합니다.
-sift = cv.SIFT_create(nfeatures=300)
-
-# detectAndCompute 함수를 사용하여 특징점을 검출하고,
-# 각 특징점에 대한 기술자(descriptor)를 함께 계산합니다.
-keypoints, descriptors = sift.detectAndCompute(img, None)
-
-# 검출된 특징점을 원본 이미지 위에 시각화합니다.
-# DRAW_RICH_KEYPOINTS 옵션을 사용하여 특징점의 크기와 방향까지 함께 표시합니다.
-img_keypoints = cv.drawKeypoints(
-    img,
-    keypoints,
-    None,
-    flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
-)
-
-# 시각화된 이미지도 matplotlib 출력에 맞게 RGB로 변환합니다.
-img_keypoints_rgb = cv.cvtColor(img_keypoints, cv.COLOR_BGR2RGB)
-
-# 출력 이미지 크기를 설정합니다.
-plt.figure(figsize=(16, 8))
-
-# 첫 번째 subplot에 원본 이미지를 출력합니다.
-plt.subplot(1, 2, 1)
-plt.imshow(img_rgb)
-plt.title("Original Image")  # 제목 설정
-plt.axis("off")  # 축 정보 제거
-
-# 두 번째 subplot에 특징점이 시각화된 이미지를 출력합니다.
-plt.subplot(1, 2, 2)
-plt.imshow(img_keypoints_rgb)
-plt.title(f"SIFT Keypoints ({len(keypoints)} points)")  # 특징점 개수를 함께 표시
-plt.axis("off")  # 축 정보 제거
-
-# subplot 간 간격을 자동으로 조정합니다.
-plt.tight_layout()
-
-# 최종 결과를 화면에 출력합니다.
-plt.show()
+model.fit(x_train, y_train, epochs=5)
 ```
+훈련 데이터를 사용하여 모델을 학습하는 부분이다.
+여기서는 전체 훈련 데이터를 5번 반복 학습하였다.
 
-
-과제 2 : SIFT를 이용한 두 영상 간 특징점 매칭
-
-과제 설명
-
-2번과제에서는 두 개의 이미지에서 SIFT(Scale-Invariant Feature Transform) 특징점을 추출한 뒤
-이를 바탕으로 두 영상 사이의 대응점을 매칭하고 결과를 시각화했습니다.
-특징점 매칭은 서로 다른 두 이미지에서 같은 물체나 같은 위치를 나타내는 지점을 찾는 과정입니다.
-이번 실습에서는 두 이미지에서 SIFT 특징점과 기술자를 추출한 후, BFMatcher를 사용하여 각 특징점 사이의 유사도를 비교하고
-매칭 결과를 이미지 위에 선으로 연결하여 확인했습니다.
-
-배경 지식
-
-1. 특징점 매칭
-
-특징점 매칭은 두 이미지에서 추출된 특징점들 중 서로 대응되는 점을 찾는 과정입니다.
-같은 장면을 다른 시점에서 촬영하거나, 약간의 이동 및 회전이 있는 경우에도 대응되는 특징점을 찾을 수 있다면 두 이미지 간 관계를 파악할 수 있습니다.
-
-
-2. SIFT 기술자(Descriptor)
-
-SIFT는 특징점의 위치만 검출하는 것이 아니라 각 특징점 주변의 지역적인 패턴을 수치 벡터 형태의 기술자(descriptor)로 표현하며
-이를 이용하면 두 이미지에서 서로 비슷한 특징점을 비교할 수 있습니다.
-
-3. BFMatcher
-
-BFMatcher(Brute-Force Matcher)는 한 이미지의 기술자와 다른 이미지의 기술자를 하나씩 직접 비교하여 가장 유사한 쌍을 찾는 방식입니다.
-SIFT 기술자는 실수형 벡터이므로 거리 계산 방식으로 cv.NORM_L2를 사용합니다.
-또한 crossCheck=True 옵션을 사용하면 한쪽 이미지에서 선택한 최근접 이웃이 반대쪽 이미지에서도 서로를 가장 가까운 특징점으로 선택하는 경우만 매칭으로 인정하므로 비교적 안정적인 결과를 얻을 수 있습니다.
-
-4. 매칭 결과 시각화
-
-검출된 특징점 매칭 결과는 cv.drawMatches()를 통해 두 이미지를 나란히 배치한 후, 대응되는 특징점 사이를 선으로 연결하여 시각화할 수 있습니다.
-이 과정을 통해 두 이미지 사이에서 어떤 지점들이 서로 대응되는지 직관적으로 확인할 수 있습니다.
-
-주요 코드 설명
-1. 두 이미지 불러오기
-
+4-7. 모델 평가
 ```
-img1 = cv.imread("4week/mot_color70.jpg")
-img2 = cv.imread("4week/mot_color83.jpg")
+loss, accuracy = model.evaluate(x_test, y_test)
 ```
+학습이 끝난 뒤 테스트 데이터로 모델 성능을 평가하는 부분이다.
+손실값과 정확도를 함께 확인할 수 있다.
 
-cv.imread()를 사용하여 두 개의 이미지를 불러옵니다.
-이미지 중 하나라도 정상적으로 읽히지 않으면 이후 특징점 추출과 매칭을 수행할 수 없으므로, None 여부를 확인하는 과정이 필요합니다.
-
-2. SIFT 객체 생성
-
-```
-sift = cv.SIFT_create()
-```
-SIFT 객체를 생성하여 두 이미지에 대해 동일한 방식으로 특징점과 기술자를 추출할 수 있도록 합니다.
-
-3. 특징점 검출 및 기술자 계산
-
-```
-kp1, des1 = sift.detectAndCompute(img1, None)
-kp2, des2 = sift.detectAndCompute(img2, None)
-```
-
-각 이미지에서 특징점(keypoints)과 기술자(descriptors)를 추출합니다.
-이 기술자는 이후 두 이미지 간의 유사한 특징점을 찾는 기준이 됩니다.
-
-4. BFMatcher 생성 및 매칭 수행
-
-```
-bf = cv.BFMatcher(cv.NORM_L2, crossCheck=True)
-matches = bf.match(des1, des2)
-```
-
-SIFT 기술자에 맞게 cv.NORM_L2를 사용하여 BFMatcher를 생성한 후, 두 이미지의 기술자를 비교하여 매칭을 수행합니다.
-crossCheck=True를 사용하여 보다 신뢰도 있는 매칭만 남기도록 했습니다.
-
-5. 거리 기준 정렬
-
-```
-matches = sorted(matches, key=lambda x: x.distance)
-```
-
-매칭 결과를 거리(distance) 기준으로 오름차순 정렬했습니다.
-거리가 작을수록 두 특징점이 더 유사하다고 볼 수 있으므로 더 좋은 매칭을 앞쪽에 배치할 수 있습니다.
-
-6. 상위 매칭만 선택
-
-```
-good_matches = matches[:50]
-```
-
-모든 매칭 결과를 한 번에 시각화하면 선이 너무 많아져 결과를 해석하기 어렵기 때문에 거리 기준으로 상위 50개의 매칭만 선택했습니다.
-
-7. 매칭 결과 시각화
-
-```
-result = cv.drawMatches(
-    img1, kp1,
-    img2, kp2,
-    good_matches, None,
-    flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
-)
-```
-
-cv.drawMatches()를 사용하여 두 이미지의 대응되는 특징점을 선으로 연결했습니다.
-NOT_DRAW_SINGLE_POINTS 옵션을 사용하여 실제로 매칭된 특징점만 표시하도록 했습니다.
-
-실습 이미지
-<img width="1917" height="640" alt="image" src="https://github.com/user-attachments/assets/5e22da25-2c39-40ab-b1c1-94a5d75e7e63" />
-
+실습이미지
+<img width="561" height="217" alt="image" src="https://github.com/user-attachments/assets/7df73f19-64fc-4313-a1d2-10ccf5c9dfae" />
 
 전체 코드
 ```
-import cv2 as cv  # OpenCV 라이브러리를 cv라는 이름으로 사용합니다.
-import matplotlib.pyplot as plt  # 결과 이미지를 출력하기 위해 matplotlib을 사용합니다.
+import tensorflow as tf  # TensorFlow 라이브러리를 불러옴
+from tensorflow.keras.models import Sequential  # 층을 순서대로 쌓는 Sequential 모델을 불러옴
+from tensorflow.keras.layers import Flatten, Dense  # Flatten 층과 Dense 층을 불러옴
 
-# 두 장의 이미지를 불러옵니다.
-# 첫 번째 이미지는 기준 이미지로 사용하고,
-# 두 번째 이미지는 이와 비교할 이미지로 사용합니다.
-img1 = cv.imread("4week/mot_color70.jpg")
-img2 = cv.imread("4week/mot_color83.jpg")
+# MNIST 데이터셋 불러오기
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()  # MNIST 훈련 데이터와 테스트 데이터를 불러옴
 
-# 두 이미지 중 하나라도 정상적으로 불러오지 못한 경우
-# 이후 작업을 진행할 수 없으므로 프로그램을 종료합니다.
-if img1 is None or img2 is None:
-    print("이미지를 불러오지 못했습니다.")
-    exit()
+# 데이터 크기 출력
+print("훈련 데이터 크기:", x_train.shape)  # 훈련 이미지 데이터의 크기를 출력함
+print("훈련 라벨 크기:", y_train.shape)  # 훈련 정답 라벨의 크기를 출력함
+print("테스트 데이터 크기:", x_test.shape)  # 테스트 이미지 데이터의 크기를 출력함
+print("테스트 라벨 크기:", y_test.shape)  # 테스트 정답 라벨의 크기를 출력함
 
-# SIFT 객체를 생성합니다.
-# 이 객체를 이용하여 특징점과 기술자를 추출할 수 있습니다.
-sift = cv.SIFT_create()
+# 픽셀 값을 0~1 범위로 정규화
+x_train = x_train / 255.0  # 훈련 이미지의 픽셀 값을 255로 나누어 0~1 범위로 변환함
+x_test = x_test / 255.0  # 테스트 이미지의 픽셀 값을 255로 나누어 0~1 범위로 변환함
 
-# 첫 번째 이미지에서 특징점과 기술자를 추출합니다.
-kp1, des1 = sift.detectAndCompute(img1, None)
+# 간단한 신경망 모델 구성
+model = Sequential([  # Sequential 방식으로 신경망 모델을 생성함
+    Flatten(input_shape=(28, 28)),  # 28x28 형태의 이미지를 1차원 벡터로 펼침
+    Dense(128, activation='relu'),  # 128개의 뉴런을 가진 은닉층을 만들고 활성화 함수로 ReLU를 사용함
+    Dense(10, activation='softmax')  # 10개의 숫자 클래스를 분류하기 위한 출력층을 만들고 Softmax를 사용함
+])
 
-# 두 번째 이미지에서 특징점과 기술자를 추출합니다.
-kp2, des2 = sift.detectAndCompute(img2, None)
-
-# BFMatcher 객체를 생성합니다.
-# SIFT 기술자는 실수형 벡터이므로 거리 계산 방식으로 NORM_L2를 사용합니다.
-# crossCheck=True로 설정하여 서로 일치하는 매칭만 남기도록 합니다.
-bf = cv.BFMatcher(cv.NORM_L2, crossCheck=True)
-
-# 두 이미지의 기술자를 비교하여 특징점 매칭을 수행합니다.
-matches = bf.match(des1, des2)
-
-# 매칭 결과를 거리(distance) 기준으로 오름차순 정렬합니다.
-# 거리가 작을수록 더 유사한 특징점이라고 볼 수 있습니다.
-matches = sorted(matches, key=lambda x: x.distance)
-
-# 매칭 결과가 너무 많으면 화면이 복잡해질 수 있으므로
-# 상위 50개의 매칭만 선택하여 시각화합니다.
-good_matches = matches[:50]
-
-# 선택된 매칭 결과를 시각화합니다.
-# 두 이미지를 나란히 놓고, 대응되는 특징점들을 선으로 연결합니다.
-result = cv.drawMatches(
-    img1, kp1,
-    img2, kp2,
-    good_matches, None,
-    flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+# 모델 컴파일
+model.compile(  # 모델의 학습 방식을 설정함
+    optimizer='adam',  # 최적화 알고리즘으로 Adam을 사용함
+    loss='sparse_categorical_crossentropy',  # 다중 클래스 분류 문제에 맞는 손실 함수를 사용함
+    metrics=['accuracy']  # 학습 과정에서 정확도를 함께 출력하도록 설정함
 )
 
-# OpenCV는 BGR 형식으로 이미지를 다루기 때문에,
-# matplotlib에서 올바른 색으로 출력하기 위해 RGB로 변환합니다.
-result_rgb = cv.cvtColor(result, cv.COLOR_BGR2RGB)
+# 모델 학습
+model.fit(x_train, y_train, epochs=5)  # 훈련 데이터를 이용해 모델을 5번 반복 학습시킴
 
-# 출력 창의 크기를 설정합니다.
-plt.figure(figsize=(18, 8))
+# 모델 평가
+loss, accuracy = model.evaluate(x_test, y_test)  # 테스트 데이터를 사용해 손실값과 정확도를 평가함
 
-# 매칭 결과 이미지를 출력합니다.
-plt.imshow(result_rgb)
-
-# 제목에 현재 표시된 매칭 개수를 함께 표시합니다.
-plt.title(f"SIFT Matching Result ({len(good_matches)} matches)")
-
-# 축 정보는 필요하지 않으므로 제거합니다.
-plt.axis("off")
-
-# 레이아웃이 겹치지 않도록 자동으로 정렬합니다.
-plt.tight_layout()
-
-# 최종 결과를 화면에 출력합니다.
-plt.show()
+# 결과 출력
+print("테스트 손실값:", loss)  # 테스트 데이터에서의 손실값을 출력함
+print("테스트 정확도:", accuracy)  # 테스트 데이터에서의 정확도를 출력함
 ```
 
 
-과제 3 : 호모그래피를 이용한 이미지 정합 (Image Alignment)
+2번 과제: CIFAR-10 데이터셋을 활용한 CNN 모델 구축
 
-과제 설명
+1. 과제 개요
 
-3번 과제에서는 두 이미지에서 SIFT 특징점을 검출한 뒤, 이를 기반으로 대응점을 찾고
-그 대응점을 이용하여 호모그래피(Homography) 행렬을 계산함으로써 한 이미지를 다른 이미지에 정렬하는 이미지 정합(Image Alignment)을 수행하였습니다.
-이미지 정합은 서로 다른 시점에서 촬영된 두 이미지가 있을 때 한 이미지를 다른 이미지의 좌표계에 맞추어 변환하는 과정입니다.
-이번 실습에서는 img1.jpg, img2.jpg, img3.jpg 중 두 장을 선택하여 특징점 매칭을 수행하고
-그 결과를 바탕으로 호모그래피를 계산한 뒤 warpPerspective()를 이용하여 정합 결과를 확인하였습니다.
+이번 과제는 CIFAR-10 데이터셋을 이용하여 합성곱 신경망(CNN, Convolutional Neural Network)을 구성하고, 이미지 분류를 수행하는 실습이다.
+CIFAR-10은 10개의 클래스(airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck)로 이루어진 대표적인 컬러 이미지 데이터셋이다. 각 이미지는 32×32 크기의 RGB 컬러 이미지이며, 이미지 분류 문제에서 기본적인 CNN 구조를 실습할 때 자주 사용된다.
 
-배경 지식
+이번 실습에서는 CIFAR-10 데이터를 불러와 정규화 전처리를 수행하고, CNN 모델을 설계하여 학습한 뒤, 테스트 데이터셋으로 성능을 평가하였다. 또한 추가로 dog.jpg 파일을 입력하여 학습된 모델이 새로운 이미지에 대해 어떤 클래스로 예측하는지도 확인하였다. 과제 자료에서도 CIFAR-10 로드, 전처리, CNN 설계 및 훈련, 성능 평가, dog.jpg 예측 수행을 요구하고 있다
 
-1. 이미지 정합(Image Alignment)
+2. 배경지식
+   
+2-1. CIFAR-10 데이터셋
 
-이미지 정합은 두 이미지 사이의 기하학적 관계를 찾아 한 이미지를 다른 이미지에 맞추는 과정입니다.
-같은 장면을 서로 다른 위치나 각도에서 촬영한 경우에도, 대응되는 점을 잘 찾을 수 있다면 두 이미지를 같은 기준으로 정렬할 수 있습니다.
+CIFAR-10은 총 10개의 클래스에 대해 학습하는 이미지 데이터셋이다.
+MNIST가 흑백 손글씨 숫자 데이터셋이었다면, CIFAR-10은 컬러 이미지 분류 문제라는 점에서 더 복잡하고 어려운 데이터셋이다. 이미지 크기가 작고(32×32), 배경과 물체가 함께 들어 있어 단순한 완전연결 신경망보다는 CNN 구조가 더 적합하다.
 
-2. 호모그래피(Homography)
+2-2. 정규화(Normalization)
 
-호모그래피는 한 평면에서의 점이 다른 이미지에서 어디로 이동하는지를 나타내는 3×3 변환 행렬입니다.
-이를 이용하면 한 이미지의 원근 변화, 회전, 이동 등을 반영하여 다른 이미지 위에 정렬할 수 있습니다.
-충분한 대응점만 확보할 수 있다면 한 이미지와 다른 이미지 사이의 투시 변환 관계를 계산할 수 있습니다.
+원본 이미지의 픽셀 값은 0~255 범위를 가진다.
+학습 전에 이를 255로 나누어 0~1 범위로 변환하면 모델이 더 안정적으로 학습할 수 있다. 과제 힌트에서도 데이터 전처리 시 픽셀 값을 0~1 범위로 정규화하면 모델 수렴이 빨라질 수 있다고 제시되어 있다.
 
-3. knnMatch와 Ratio Test
+2-3. CNN(합성곱 신경망)
 
-특징점 매칭 과정에서는 잘못된 대응점(outlier)이 포함될 수 있기 때문에
-단순히 가장 가까운 특징점 하나만 사용하는 것보다 두 개의 최근접 이웃을 비교하는 방식이 더 안정적입니다.
-knnMatch()는 각 특징점에 대해 가장 가까운 이웃 2개를 찾고
-이후 Ratio Test를 적용하여 첫 번째 거리와 두 번째 거리의 비율이 충분히 작은 경우만 좋은 매칭으로 선택합니다.
-이 방법은 애매한 매칭을 줄여 보다 신뢰도 높은 대응점만 남기는 데 도움이 됩니다.
+CNN은 이미지 처리에 특화된 신경망 구조이다.
+일반적인 완전연결 신경망(Dense)과 달리, CNN은 이미지의 공간적 구조를 유지하면서 특징을 추출할 수 있다.
+주요 구성 요소는 다음과 같다.
+    - Conv2D: 이미지에서 중요한 특징(에지, 모서리, 질감, 패턴 등)을 추출
+    - MaxPooling2D: 특징 맵의 크기를 줄여 계산량을 감소시키고 중요한 특징만 유지
+    - Flatten: 다차원 특징 맵을 1차원 벡터로 변환
+    - Dense: 최종적으로 분류를 수행하는 완전연결층
 
-4. RANSAC
+2-4. 활성화 함수
 
-실제 매칭 결과에는 틀린 대응점이 섞여 있을 수 있습니다.
-이러한 이상점(outlier)이 그대로 포함되면 잘못된 호모그래피가 계산될 수 있기 때문에
-cv.findHomography()에서 RANSAC을 사용하여 일관된 관계를 가지는 대응점만 선택하도록 하였습니다.
-이를 통해 보다 안정적인 정합 결과를 얻을 수 있습니다.
+- ReLU: 합성곱층과 은닉층에서 사용되며, 음수는 0으로 만들고 양수는 그대로 전달한다.
+- Softmax: 출력층에서 사용되며, 10개 클래스 각각에 대한 확률을 계산한다.
 
-주요 코드 설명
-1. 두 이미지 불러오기
-img1 = cv.imread("4week/img1.jpg")
-img2 = cv.imread("4week/img2.jpg")
+2-5. 손실 함수와 정확도
+- Loss(손실값): 모델의 예측이 실제 정답과 얼마나 차이가 나는지를 수치로 나타낸 값
+- Accuracy(정확도): 전체 데이터 중 맞춘 비율
 
-cv.imread()를 사용하여 두 개의 이미지를 불러왔습니다.
-이미지 중 하나라도 정상적으로 읽히지 않으면 특징점 추출과 정합을 수행할 수 없기 때문에, None 여부를 확인하는 과정이 필요합니다.
+이번 코드에서는 손실 함수로 sparse_categorical_crossentropy를 사용했다. 이는 정답 라벨이 원-핫 인코딩이 아니라 정수 형태일 때 다중 클래스 분류에서 자주 사용되는 손실 함수이다.
 
-2. SIFT 특징점 검출 및 기술자 계산
+3. 사용한 주요 알고리즘 및 모델 구조 설명
 
+3-1. CNN 구조를 사용한 이유
+
+이미지는 단순한 숫자 벡터가 아니라, 가로·세로 위치 관계가 중요한 데이터이다.
+CNN은 이 공간 정보를 유지한 상태로 특징을 뽑아낼 수 있기 때문에 CIFAR-10 같은 이미지 데이터셋에 적합하다.
+
+3-2. Conv2D
+
+Conv2D는 입력 이미지 위를 작은 필터(kernel)가 이동하며 특징을 추출하는 층이다.
+처음 층에서는 단순한 선이나 에지를 배우고, 층이 깊어질수록 더 복잡한 형태와 패턴을 학습한다.
+
+3-3. MaxPooling2D
+
+MaxPooling2D는 특징 맵의 크기를 줄여 주는 역할을 한다.
+중요한 특징만 유지하면서 데이터 크기를 줄여 계산량을 감소시키고, 과적합을 어느 정도 방지하는 데도 도움이 된다.
+
+3-4. Flatten
+
+합성곱층과 풀링층을 거친 결과는 다차원 특징 맵이다.
+이를 최종 분류층(Dense)에 넣기 위해 Flatten을 사용하여 1차원 벡터로 펼친다.
+
+3-5. Dense
+
+Dense는 완전연결층이다.
+Flatten으로 펼쳐진 특징 정보를 바탕으로 최종 분류를 수행한다.
+
+3-6. Adam Optimizer
+
+adam은 학습 시 가중치를 효율적으로 업데이트해 주는 대표적인 최적화 알고리즘이다.
+성능이 안정적이고 사용이 간편하여 기본 실습에서 자주 사용된다.
+
+4. 주요 코드 설명
+   
+4-1. 라이브러리 불러오기
 ```
-sift = cv.SIFT_create()
-kp1, des1 = sift.detectAndCompute(img1, None)
-kp2, des2 = sift.detectAndCompute(img2, None)
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Input
+import numpy as np
+from tensorflow.keras.preprocessing import image
+import matplotlib.pyplot as plt
+```
+CNN 모델 구성, 이미지 전처리, 결과 출력 및 그래프 시각화를 위해 필요한 라이브러리를 불러온다.
+
+4-2. CIFAR-10 클래스 이름 지정
+```
+class_names = [
+    'airplane', 'automobile', 'bird', 'cat', 'deer',
+    'dog', 'frog', 'horse', 'ship', 'truck'
+]
 ```
 
-SIFT 객체를 생성한 뒤, 각 이미지에서 특징점과 기술자를 추출하였습니다.
-이 기술자는 두 이미지 사이에서 서로 대응되는 지점을 찾기 위한 기준이 됩니다.
-
-3. BFMatcher와 knnMatch 사용
-
+4-3. 데이터셋 불러오기
 ```
-bf = cv.BFMatcher(cv.NORM_L2)
-matches = bf.knnMatch(des2, des1, k=2)
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 ```
+TensorFlow에서 제공하는 CIFAR-10 데이터셋을 불러온다.
+과제 힌트에서도 tensorflow.keras.datasets에서 CIFAR-10을 불러올 수 있다고 제시되어 있다.
+CIFAR-10의 10개 클래스 이름을 리스트로 저장한다.
+예측 결과를 숫자가 아닌 실제 클래스 이름으로 보기 위해 사용한다.
 
-SIFT 기술자는 실수형 벡터이므로 거리 계산 방식으로 cv.NORM_L2를 사용하였습니다.
-이후 knnMatch()를 통해 각 특징점마다 가장 가까운 두 개의 이웃을 찾도록 하였습니다.
-
-4. 좋은 매칭점 선별
-
+4-4. 데이터 전처리
 ```
-good_matches = []
-for m, n in matches:
-    if m.distance < 0.7 * n.distance:
-        good_matches.append(m)
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
 ```
+훈련 데이터와 테스트 데이터의 픽셀 값을 0~1 범위로 정규화한다.
+과제 힌트의 “픽셀 값을 0~1 범위로 정규화” 부분을 반영한 코드이다
 
-최근접 이웃 두 개의 거리 비율을 비교하여, 첫 번째 매칭이 두 번째보다 충분히 더 좋은 경우만 선택하였습니다.
-이 과정은 잘못된 매칭을 줄이고 이후 호모그래피 계산의 정확도를 높이기 위한 단계입니다.
-
-5. 호모그래피 계산
-
+4-6. CNN 모델 구성
 ```
-H, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
+model = Sequential([
+    Input(shape=(32, 32, 3)),
+
+    Conv2D(32, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    
+    Conv2D(128, (3, 3), activation='relu', padding='same'),
+    MaxPooling2D((2, 2)),
+
+    Flatten(),
+    Dense(64, activation='relu'),
+    Dense(10, activation='softmax')
+])
 ```
+이 모델은 다음과 같은 흐름으로 구성되어 있다.
 
-좋은 매칭점들로부터 대응 좌표를 추출한 뒤, cv.findHomography()를 사용하여 호모그래피 행렬을 계산하였습니다.
-이때 cv.RANSAC을 적용하여 이상점의 영향을 줄이도록 하였습니다.
+1. 입력 이미지(32×32×3)를 받음
+2. Conv2D + MaxPooling2D를 반복하여 특징을 추출하고 크기를 줄임
+3. 마지막에 Flatten으로 펼침
+4. Dense 층을 거쳐 최종적으로 10개 클래스 중 하나로 분류함
 
+4-7. 모델 컴파일
+```
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+```
+학습 방식을 설정하는 부분이다.
 
-실습이미지
-<img width="1918" height="412" alt="image" src="https://github.com/user-attachments/assets/234f2932-a269-4152-8fcd-b9810053d88a" />
+- adam: 최적화 알고리즘
+- sparse_categorical_crossentropy: 다중 분류용 손실 함수
+- accuracy: 정확도 출력
 
+4-8. 모델 학습
+```
+history = model.fit(
+    x_train, y_train,
+    epochs=10,
+    validation_data=(x_test, y_test)
+)
+```
+4-9. dog.jpg 예측
+```
+img = image.load_img(img_path, target_size=(32, 32))
+img_array = image.img_to_array(img)
+img_array = img_array.astype("float32") / 255.0
+img_array = np.expand_dims(img_array, axis=0)
+```
+dog.jpg를 불러와 CIFAR-10 입력 크기와 동일한 32×32로 조정한 뒤, 예측에 맞게 배열 형태로 변환하고 정규화한다.
+훈련 데이터를 사용해 모델을 10번 반복 학습한다.
+또한 검증 데이터로 테스트 데이터를 함께 넣어, 학습 과정에서 정확도와 손실의 변화를 확인할 수 있도록 하였다.
+```
+prediction = model.predict(img_array)
+predicted_class = np.argmax(prediction)
+predicted_label = class_names[predicted_class]
+```
+모델이 dog.jpg에 대해 예측한 확률 중 가장 큰 값을 가지는 클래스를 선택한다.
+```
+plt.imshow(img)
+plt.title(f"Prediction: {predicted_label}")
+```
+예측한 결과를 이미지와 함께 시각적으로 확인할 수 있도록 출력한다.
+
+추가로 10번 돌려본 결과 9번 : 개 1번 고양이로 나왔다
+
+실습이미지 1
+<img width="317" height="67" alt="image" src="https://github.com/user-attachments/assets/5e58baee-7f1c-4160-9a3b-028fcf69fcbe" />
+
+실습이미지 2
+<img width="367" height="384" alt="image" src="https://github.com/user-attachments/assets/192dfcbc-5dcb-4d3f-a6af-a2ec0c09a6e4" />
+
+실습이미지 3
+<img width="795" height="504" alt="image" src="https://github.com/user-attachments/assets/035c7634-9b56-4975-9472-b0469a904f9f" />
+
+실습이미지 4
+<img width="745" height="471" alt="image" src="https://github.com/user-attachments/assets/7a86cf42-6913-45bc-acaa-7197ebbeda30" />
 
 전체코드
 ```
-import cv2 as cv  # OpenCV 라이브러리를 cv라는 이름으로 사용합니다.
-import numpy as np  # 좌표 배열을 다루기 위해 NumPy를 사용합니다.
-import matplotlib.pyplot as plt  # 결과 이미지를 시각화하기 위해 matplotlib을 사용합니다.
+import tensorflow as tf  # TensorFlow 라이브러리를 불러옴
+from tensorflow.keras.models import Sequential  # 층을 순서대로 쌓는 Sequential 모델을 불러옴
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Input  # CNN 구성에 필요한 층들을 불러옴
+import numpy as np  # 배열 처리와 차원 변환을 위해 NumPy를 불러옴
+from tensorflow.keras.preprocessing import image  # 이미지 파일을 불러오고 배열로 바꾸기 위한 모듈을 불러옴
+import matplotlib.pyplot as plt  # 이미지와 그래프를 출력하기 위해 matplotlib을 불러옴
 
-# 정합에 사용할 두 장의 이미지를 불러옵니다.
-# 여기서는 img1을 기준 이미지로, img2를 변환할 이미지로 사용합니다.
-img1 = cv.imread("4week/img1.jpg")
-img2 = cv.imread("4week/img2.jpg")
+# CIFAR-10 클래스 이름
+class_names = [  # CIFAR-10 데이터셋의 10개 클래스 이름을 리스트로 저장함
+    'airplane', 'automobile', 'bird', 'cat', 'deer',  # 비행기, 자동차, 새, 고양이, 사슴 클래스
+    'dog', 'frog', 'horse', 'ship', 'truck'  # 개, 개구리, 말, 배, 트럭 클래스
+]
+plt.imshow(img)
+plt.title(f"Prediction: {predicted_label}")
 
-# 두 이미지 중 하나라도 정상적으로 불러오지 못한 경우
-# 이후 연산을 진행할 수 없으므로 프로그램을 종료합니다.
-if img1 is None or img2 is None:
-    print("이미지를 불러오지 못했습니다.")
-    exit()
+예측한 결과를 이미지와 함께 시각적으로 확인할 수 있도록 출력한다.
 
-# SIFT 객체를 생성합니다.
-# 이 객체를 이용하여 특징점과 기술자를 추출합니다.
-sift = cv.SIFT_create()
+# CIFAR-10 데이터셋 불러오기
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()  # CIFAR-10의 훈련 데이터와 테스트 데이터를 불러옴
 
-# 첫 번째 이미지에서 특징점과 기술자를 추출합니다.
-kp1, des1 = sift.detectAndCompute(img1, None)
+# 데이터 전처리: 픽셀 값을 0~1 범위로 정규화
+x_train = x_train.astype("float32") / 255.0  # 훈련 이미지의 픽셀 값을 실수형으로 바꾼 뒤 255로 나누어 0~1 범위로 정규화함
+x_test = x_test.astype("float32") / 255.0  # 테스트 이미지의 픽셀 값을 실수형으로 바꾼 뒤 255로 나누어 0~1 범위로 정규화함
 
-# 두 번째 이미지에서 특징점과 기술자를 추출합니다.
-kp2, des2 = sift.detectAndCompute(img2, None)
+# CIFAR-10 샘플 이미지 출력
+plt.figure(figsize=(10, 10))  # 샘플 이미지를 여러 장 보기 위해 10x10 크기의 출력 창을 생성함
+for i in range(9):  # 처음 9장의 이미지를 반복해서 출력함
+    plt.subplot(3, 3, i + 1)  # 3행 3열 형태의 서브플롯 중 하나를 선택함
+    plt.imshow(x_train[i])  # 현재 훈련 이미지를 화면에 출력함
+    plt.title(class_names[int(y_train[i][0])])  # 현재 이미지의 정답 라벨을 제목으로 표시함
+    plt.axis("off")  # 축 눈금을 보이지 않게 설정함
+plt.suptitle("CIFAR-10 Sample Images")  # 전체 샘플 이미지 출력 창의 제목을 설정함
+plt.tight_layout()  # 그래프 간격이 겹치지 않도록 자동으로 정리함
+plt.show()  # 샘플 이미지를 화면에 출력함
 
-# BFMatcher 객체를 생성합니다.
-# SIFT 기술자는 실수형 벡터이므로 거리 계산 방식으로 NORM_L2를 사용합니다.
-bf = cv.BFMatcher(cv.NORM_L2)
+# CNN 모델 구성
+model = Sequential([  # Sequential 방식으로 CNN 모델을 생성함
+    Input(shape=(32, 32, 3)),  # 입력 이미지 크기가 32x32이고 RGB 3채널임을 지정함
+    Conv2D(32, (3, 3), activation='relu'),  # 32개의 필터를 가진 3x3 합성곱 층을 추가하고 활성화 함수로 ReLU를 사용함
+    MaxPooling2D((2, 2)),  # 2x2 최대 풀링을 적용하여 특징 맵의 크기를 줄임
 
-# 각 특징점에 대해 가장 가까운 이웃 2개를 찾습니다.
-# 이를 통해 ratio test를 적용할 수 있습니다.
-matches = bf.knnMatch(des2, des1, k=2)
+    Conv2D(64, (3, 3), activation='relu'),  # 64개의 필터를 가진 두 번째 합성곱 층을 추가함
+    MaxPooling2D((2, 2)),  # 다시 2x2 최대 풀링을 적용하여 크기를 줄임
+    
+    Conv2D(128, (3, 3), activation='relu', padding='same'),  # 128개의 필터를 가진 세 번째 합성곱 층을 추가하고 패딩을 same으로 설정함
+    MaxPooling2D((2, 2)),  # 세 번째 최대 풀링을 적용하여 특징 맵을 더 압축함
 
-# 좋은 매칭만 저장할 리스트를 생성합니다.
-good_matches = []
+    Flatten(),  # 다차원 특징 맵을 1차원 벡터로 펼침
+    Dense(64, activation='relu'),  # 64개의 뉴런을 가진 완전연결층을 추가하고 ReLU를 사용함
+    Dense(10, activation='softmax')  # 10개 클래스 분류를 위한 출력층을 추가하고 Softmax를 사용함
+])
 
-# knnMatch로 구한 최근접 이웃 2개의 거리를 비교하여
-# 더 신뢰도 높은 매칭만 선별합니다.
-for m, n in matches:
-    if m.distance < 0.7 * n.distance:
-        good_matches.append(m)
-
-# 호모그래피를 계산하려면 최소 4개의 대응점이 필요하므로,
-# 좋은 매칭 개수가 4개 미만이면 더 이상 진행하지 않습니다.
-if len(good_matches) < 4:
-    print("호모그래피 계산에 필요한 매칭점이 부족합니다.")
-    exit()
-
-# 두 번째 이미지에서의 대응 좌표들을 추출합니다.
-# queryIdx는 knnMatch 기준으로 현재 질의 이미지의 특징점을 의미합니다.
-src_pts = np.float32([kp2[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
-# 첫 번째 이미지에서의 대응 좌표들을 추출합니다.
-# trainIdx는 비교 대상 이미지에서 매칭된 특징점을 의미합니다.
-dst_pts = np.float32([kp1[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
-# 좋은 매칭점들을 이용하여 호모그래피 행렬을 계산합니다.
-# RANSAC을 사용하여 잘못된 매칭점(outlier)의 영향을 줄입니다.
-H, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
-
-# 호모그래피 계산에 실패한 경우 프로그램을 종료합니다.
-if H is None:
-    print("호모그래피 계산 실패")
-    exit()
-
-# 두 이미지의 높이와 너비를 각각 구합니다.
-h1, w1 = img1.shape[:2]
-h2, w2 = img2.shape[:2]
-
-# 계산된 호모그래피를 이용하여 img2를 img1의 좌표계로 변환합니다.
-# 출력 크기는 두 이미지를 합친 파노라마 크기로 설정합니다.
-warped = cv.warpPerspective(img2, H, (w1 + w2, max(h1, h2)))
-
-# 기준 이미지인 img1을 결과 이미지의 왼쪽 영역에 그대로 배치합니다.
-warped[0:h1, 0:w1] = img1
-
-# RANSAC 결과로 얻은 inlier / outlier 정보를 리스트 형태로 변환합니다.
-matches_mask = mask.ravel().tolist()
-
-# 특징점 매칭 결과를 시각화합니다.
-# matchesMask를 사용하면 RANSAC에서 inlier로 판단된 매칭만 표시할 수 있습니다.
-matching_result = cv.drawMatches(
-    img2, kp2,
-    img1, kp1,
-    good_matches, None,
-    matchesMask=matches_mask,
-    flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+# 모델 컴파일
+model.compile(  # 모델의 학습 방식을 설정함
+    optimizer='adam',  # 최적화 알고리즘으로 Adam을 사용함
+    loss='sparse_categorical_crossentropy',  # 다중 클래스 분류 문제에 적합한 손실 함수를 사용함
+    metrics=['accuracy']  # 학습 중 정확도를 함께 출력하도록 설정함
 )
 
-# OpenCV는 BGR 형식으로 이미지를 처리하므로,
-# matplotlib에서 올바른 색상을 출력하기 위해 RGB로 변환합니다.
-warped_rgb = cv.cvtColor(warped, cv.COLOR_BGR2RGB)
-matching_rgb = cv.cvtColor(matching_result, cv.COLOR_BGR2RGB)
+# 모델 학습
+history = model.fit(  # 모델 학습 결과를 history 변수에 저장함
+    x_train, y_train,  # 훈련 이미지와 훈련 라벨을 학습 데이터로 사용함
+    epochs=10,  # 전체 데이터를 10번 반복 학습함
+    validation_data=(x_test, y_test)  # 테스트 데이터를 검증 데이터로 사용하여 매 epoch마다 성능을 확인함
+)
 
-# 출력 창의 크기를 설정합니다.
-plt.figure(figsize=(20, 8))
+# 모델 성능 평가
+loss, accuracy = model.evaluate(x_test, y_test)  # 테스트 데이터를 사용해 최종 손실값과 정확도를 계산함
+print(f"테스트 손실값: {loss:.4f}")  # 계산된 테스트 손실값을 소수점 넷째 자리까지 출력함
+print(f"테스트 정확도: {accuracy * 100:.2f}%")  # 계산된 테스트 정확도를 퍼센트 형태로 출력함
 
-# 왼쪽 subplot에 특징점 매칭 결과를 출력합니다.
-plt.subplot(1, 2, 1)
-plt.imshow(matching_rgb)
-plt.title(f"Matching Result (Inliers: {sum(matches_mask)}/{len(good_matches)})")
-plt.axis("off")
+# 학습 정확도 그래프 출력
+plt.figure(figsize=(8, 5))  # 정확도 그래프를 그리기 위한 출력 창을 생성함
+plt.plot(history.history['accuracy'], label='Train Accuracy')  # 훈련 데이터 정확도 변화를 그래프로 그림
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')  # 검증 데이터 정확도 변화를 그래프로 그림
+plt.title('Training and Validation Accuracy')  # 그래프 제목을 설정함
+plt.xlabel('Epoch')  # x축 이름을 Epoch로 설정함
+plt.ylabel('Accuracy')  # y축 이름을 Accuracy로 설정함
+plt.legend()  # 그래프 범례를 표시함
+plt.grid(True)  # 그래프에 격자선을 표시함
+plt.show()  # 정확도 그래프를 화면에 출력함
 
-# 오른쪽 subplot에 정합된 이미지를 출력합니다.
-plt.subplot(1, 2, 2)
-plt.imshow(warped_rgb)
-plt.title("Warped Image")
-plt.axis("off")
+# 학습 손실 그래프 출력
+plt.figure(figsize=(8, 5))  # 손실 그래프를 그리기 위한 출력 창을 생성함
+plt.plot(history.history['loss'], label='Train Loss')  # 훈련 데이터 손실값 변화를 그래프로 그림
+plt.plot(history.history['val_loss'], label='Validation Loss')  # 검증 데이터 손실값 변화를 그래프로 그림
+plt.title('Training and Validation Loss')  # 그래프 제목을 설정함
+plt.xlabel('Epoch')  # x축 이름을 Epoch로 설정함
+plt.ylabel('Loss')  # y축 이름을 Loss로 설정함
+plt.legend()  # 그래프 범례를 표시함
+plt.grid(True)  # 그래프에 격자선을 표시함
+plt.show()  # 손실 그래프를 화면에 출력함
 
-# subplot 간 간격을 자동으로 정리합니다.
-plt.tight_layout()
+# dog.jpg 불러오기
+img_path = "dog.jpg"  # 예측할 이미지 파일 이름을 변수에 저장함
+img = image.load_img(img_path, target_size=(32, 32))  # dog.jpg를 불러오고 CIFAR-10 입력 크기에 맞게 32x32로 조정함
+img_array = image.img_to_array(img)  # 불러온 이미지를 NumPy 배열 형태로 변환함
 
-# 최종 결과를 화면에 출력합니다.
-plt.show()
+# dog.jpg 전처리
+img_array = img_array.astype("float32") / 255.0  # 예측용 이미지의 픽셀 값을 실수형으로 바꾸고 0~1 범위로 정규화함
+img_array = np.expand_dims(img_array, axis=0)  # 모델 입력 형태에 맞추기 위해 배치 차원을 추가함
+
+# dog.jpg 예측
+prediction = model.predict(img_array)  # 전처리한 dog.jpg를 모델에 넣어 예측 결과를 얻음
+predicted_class = np.argmax(prediction)  # 가장 확률이 높은 클래스의 인덱스를 선택함
+predicted_label = class_names[predicted_class]  # 선택된 인덱스를 실제 클래스 이름으로 변환함
+
+print("dog.jpg 예측 결과:", predicted_label)  # dog.jpg가 어떤 클래스로 예측되었는지 출력함
+print("각 클래스 확률:", prediction)  # 10개 클래스에 대한 예측 확률을 모두 출력함
+
+# dog.jpg 출력
+plt.figure(figsize=(4, 4))  # 예측한 dog.jpg를 보기 위한 출력 창을 생성함
+plt.imshow(img)  # 불러온 dog.jpg 이미지를 화면에 출력함
+plt.title(f"Prediction: {predicted_label}")  # 예측 결과를 이미지 제목으로 표시함
+plt.axis("off")  # 축 눈금을 보이지 않게 설정함
+plt.show()  # dog.jpg 이미지를 화면에 출력함
 ```
+
+
