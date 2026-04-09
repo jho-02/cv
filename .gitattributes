@@ -1,0 +1,2 @@
+6week/yolov3.weights filter=lfs diff=lfs merge=lfs -text
+6week/*.mp4 filter=lfs diff=lfs merge=lfs -text
